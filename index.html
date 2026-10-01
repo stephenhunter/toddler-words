@@ -133,13 +133,36 @@
   .mcard .face .glyph{font-weight:900;line-height:1;color:#7b4fd6}
   .mcard.done .face{box-shadow:inset 0 0 0 5px #ffd84d,0 6px 0 rgba(59,43,90,.14)}
   .mcard.done.bump{animation:bump .6s ease}
+  .mcard.gone{animation:vanish .8s cubic-bezier(.45,0,.75,.4) forwards;pointer-events:none}
+  @keyframes vanish{0%{transform:scale(1) rotate(0);opacity:1}28%{transform:scale(1.14) rotate(-7deg);opacity:1}100%{transform:translateY(-36px) scale(0) rotate(40deg);opacity:0}}
+  .mcard.nope{animation:nope .55s ease}
+  @keyframes nope{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px) rotate(-3deg)}40%{transform:translateX(8px) rotate(2deg)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+  .mcard .face .letterglyph{text-shadow:0 .06em 0 rgba(59,43,90,.15)}
+  .mmodes{display:flex;gap:10px;justify-content:center;padding:2px 12px 4px}
+  .mmode{flex:1;max-width:190px;min-height:86px;border:0;border-radius:24px;background:#fff;box-shadow:0 5px 0 rgba(59,43,90,.12);padding:8px 4px 6px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:clamp(17px,4.6vw,23px);font-weight:900;transition:transform .1s}
+  .mmode .cv{width:46px;height:46px;display:flex;align-items:center;justify-content:center}
+  .mmode .cv svg{width:100%;height:100%;display:block}
+  .mmode .gl{font-size:42px;line-height:1;font-weight:900;color:#ff4f8b}
+  .mmode.on{background:linear-gradient(160deg,#c49bff,var(--match));color:#fff;box-shadow:0 5px 0 #7b4fd6}
+  .mmode.on .gl{color:#fff}
+  .mmode:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(59,43,90,.12)}
+  .confetti.shape{background:none;border-radius:0}
+  .confetti.shape svg{width:100%;height:100%;display:block}
   @keyframes bump{0%,100%{transform:scale(1)}40%{transform:scale(1.1) rotate(-3deg)}70%{transform:scale(.97) rotate(2deg)}}
   .mwin{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(255,246,214,.92);z-index:5;text-align:center}
   .mwin.show{display:flex}
   .mwin .wstar{width:min(52vmin,300px);height:min(52vmin,300px);animation:winstar 1.6s ease-in-out infinite}
   .mwin .wstar svg{width:100%;height:100%}
   @keyframes winstar{0%,100%{transform:scale(1) rotate(-4deg)}50%{transform:scale(1.08) rotate(4deg)}}
-  .mwin h2{margin:0;font-size:clamp(34px,9vw,56px)}
+  .mwin h2{margin:0;font-size:clamp(48px,13.5vw,88px);line-height:1.05;color:#ff4f8b;text-shadow:0 5px 0 #ffd84d,0 10px 0 rgba(59,43,90,.14);padding:0 10px}
+  .mwin.show h2{animation:yayIn .9s cubic-bezier(.3,1.6,.5,1) both,yayBob 1.6s .9s ease-in-out infinite}
+  @keyframes yayIn{0%{transform:scale(.2) rotate(-12deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+  @keyframes yayBob{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.06) rotate(2deg)}}
+  .mwin .wsub{font-size:clamp(24px,7vw,36px);font-weight:900;color:#7b4fd6;min-height:0}
+  .mwin .wsub:empty{display:none}
+  .mwin.show .row{animation:fadeUp .5s 1.2s both}
+  @keyframes fadeUp{0%{transform:translateY(20px);opacity:0}100%{transform:none;opacity:1}}
   .mwin .row{gap:12px}
   .bigbtn{border:0;border-radius:24px;padding:16px 26px;font-size:clamp(20px,5vw,26px);font-weight:900;color:#fff;background:linear-gradient(160deg,#ff9a6b,#ff4f8b);box-shadow:0 6px 0 #c2366a;display:inline-flex;align-items:center;gap:10px}
   .bigbtn .i{width:1.2em;height:1.2em}
@@ -230,13 +253,15 @@
     <div class="mtitle"><span class="i" data-icon="cards"></span><span id="mTitle">Match!</span></div>
     <button class="mhome" id="mBack" aria-label="Choose another game"><span class="i" data-icon="again"></span></button>
   </div>
+  <div class="mmodes" id="mModes"></div>
   <div class="mbody" id="mBody">
     <div class="mpick" id="mPick"></div>
     <div class="mgrid hidden" id="mGrid"></div>
   </div>
   <div class="mwin" id="mWin">
     <div class="wstar" id="wStar"></div>
-    <h2 id="wText">Yay!</h2>
+    <h2 id="wText">You Did It!!</h2>
+    <div class="wsub" id="wSub"></div>
     <div class="row">
       <button class="bigbtn" id="wAgain"><span class="i" data-icon="again"></span><span>Play again</span></button>
       <button class="bigbtn alt" id="wOther"><span class="i" data-icon="cards"></span><span>Other</span></button>
@@ -295,6 +320,8 @@
         <div><label for="sPairs">Pairs</label><select id="sPairs"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
         <div><label for="sMatchMode">Match type</label><select id="sMatchMode"><option value="pic">Picture + same picture (easy)</option><option value="letter">Picture + letter or number (harder)</option></select></div>
       </div>
+      <label for="sLetterSet">Letters game: letters to use (blank = random from A–Z each round)</label>
+      <input type="text" id="sLetterSet" maxlength="60" placeholder="e.g. ABC or S, A, M (blank = A–Z)">
       <p class="muted">The English voice is a male British neural Piper voice (not a clone of any actor). Japanese uses your device's ja-JP voice, preferring a male voice if one is installed. Speech recognition is generous: after 2 tries any sound counts as a success.</p>
     </div>
   </div>

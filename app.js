@@ -1,4 +1,4 @@
-/* Toddler Words v2 — app logic. Requires art.js (ART, ICONS) and neural-tts.js (NeuralTTS). */
+/* Toddler Words v3 — app logic. Requires art.js (ART, ICONS) and neural-tts.js (NeuralTTS). */
 (function(){
 'use strict';
 document.querySelectorAll('[data-icon]').forEach(function(n){ n.innerHTML = ICONS[n.dataset.icon] || ''; });
@@ -82,7 +82,7 @@ var LS = {
   get:function(k,d){try{var v=localStorage.getItem('tw.'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set:function(k,v){try{localStorage.setItem('tw.'+k,JSON.stringify(v));return true;}catch(e){alert('Could not save (storage full?). Try a smaller photo.');return false;}}
 };
-var settings = Object.assign({voiceMode:'neural', neuralVoice:NeuralTTS.VOICES[0].key, listen:true, sayLetter:true, pairs:3, matchMode:'pic'}, LS.get('settings',{}));
+var settings = Object.assign({voiceMode:'neural', neuralVoice:NeuralTTS.VOICES[0].key, listen:true, sayLetter:true, pairs:3, matchMode:'pic', letterSet:''}, LS.get('settings',{}));
 if(!NeuralTTS.VOICES.some(function(v){return v.key===settings.neuralVoice;})) settings.neuralVoice=NeuralTTS.VOICES[0].key;
 function saveSettings(){LS.set('settings',settings);}
 var neural = {state:'idle', err:null, pct:0};
@@ -148,6 +148,53 @@ function softPop(){
   o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+0.16);
 }
 
+function noiseBuf(c, sec){ var n=Math.max(1,Math.floor(c.sampleRate*sec)), b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0); for(var i=0;i<n;i++) d[i]=Math.random()*2-1; return b; }
+// Match found: filtered white-noise sweep (band-pass rising 350 Hz -> 4.2 kHz), panned left -> right
+function swoosh(){
+  var c=ctx(); if(!c) return; var t=c.currentTime+0.01, dur=0.55;
+  var src=c.createBufferSource(); src.buffer=noiseBuf(c,dur+0.05);
+  var bp=c.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=1.4;
+  bp.frequency.setValueAtTime(350,t); bp.frequency.exponentialRampToValueAtTime(4200,t+dur*0.75); bp.frequency.exponentialRampToValueAtTime(2600,t+dur);
+  var g=c.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.55,t+dur*0.35); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  src.connect(bp); bp.connect(g);
+  if(c.createStereoPanner){ var pn=c.createStereoPanner(); pn.pan.setValueAtTime(-0.6,t); pn.pan.linearRampToValueAtTime(0.6,t+dur); g.connect(pn); pn.connect(c.destination); }
+  else g.connect(c.destination);
+  src.start(t); src.stop(t+dur+0.05);
+}
+// Board cleared: little brass-style fanfare (sawtooth+square through a low-pass), sparkle arpeggio, and a synthesized crowd cheer with claps
+var FANFARE_BEAT=0.14;
+function fanfare(){
+  var c=ctx(); if(!c) return; var t0=c.currentTime+0.03, B=FANFARE_BEAT;
+  var master=c.createGain(); master.gain.value=0.9; var lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2600; lp.connect(master); master.connect(c.destination);
+  var seq=[[0,[392],0.8],[1,[392],0.8],[2,[392],0.8],[3,[523.25],2.6],[6,[392,523.25,659.25,1046.5],5]];   // [beat, freqs, length in beats]
+  seq.forEach(function(sq){ var st=t0+sq[0]*B, len=sq[2]*B;
+    sq[1].forEach(function(f){ ['sawtooth','square'].forEach(function(type,j){
+      var o=c.createOscillator(), g=c.createGain(); o.type=type; o.frequency.value=f*(j?1.004:1);
+      if(len>0.3){ var lfo=c.createOscillator(), lg=c.createGain(); lfo.frequency.value=5.5; lg.gain.value=f*0.006; lfo.connect(lg); lg.connect(o.frequency); lfo.start(st); lfo.stop(st+len+0.3); }
+      var v=(j?0.035:0.09)/Math.sqrt(sq[1].length);
+      g.gain.setValueAtTime(0.0001,st); g.gain.exponentialRampToValueAtTime(v,st+0.03); g.gain.setValueAtTime(v*0.8,st+Math.max(0.05,len-0.05)); g.gain.exponentialRampToValueAtTime(0.0001,st+len+0.25);
+      o.connect(g); g.connect(lp); o.start(st); o.stop(st+len+0.3);
+    }); });
+  });
+  var top=t0+6*B;
+  [1046.5,1318.5,1568,2093].forEach(function(f,i){ var o=c.createOscillator(), g=c.createGain(), st=top+0.1+i*0.07; o.type='triangle'; o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,st); g.gain.exponentialRampToValueAtTime(0.07,st+0.02); g.gain.exponentialRampToValueAtTime(0.0001,st+0.5); o.connect(g); g.connect(c.destination); o.start(st); o.stop(st+0.55); });
+  cheer(top);
+}
+function cheer(st){
+  var c=ctx(); if(!c) return; var dur=1.8;
+  var src=c.createBufferSource(); src.buffer=noiseBuf(c,dur);
+  var f1=c.createBiquadFilter(); f1.type='bandpass'; f1.frequency.value=1100; f1.Q.value=0.9;
+  var g=c.createGain(); g.gain.setValueAtTime(0.0001,st); g.gain.exponentialRampToValueAtTime(0.12,st+0.2); g.gain.setValueAtTime(0.1,st+0.8); g.gain.exponentialRampToValueAtTime(0.0001,st+dur);
+  var lfo=c.createOscillator(), lg=c.createGain(); lfo.frequency.value=7; lg.gain.value=0.035; lfo.connect(lg); lg.connect(g.gain);
+  src.connect(f1); f1.connect(g); g.connect(c.destination); src.start(st); src.stop(st+dur); lfo.start(st); lfo.stop(st+dur);
+  var cb=noiseBuf(c,0.06);
+  for(var k=0;k<16;k++){ var ct=st+0.05+Math.random()*1.3, s=c.createBufferSource(); s.buffer=cb;
+    var bp=c.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1500+Math.random()*1500; bp.Q.value=1.2;
+    var cg=c.createGain(); cg.gain.setValueAtTime(0.3,ct); cg.gain.exponentialRampToValueAtTime(0.0001,ct+0.05);
+    s.connect(bp); bp.connect(cg); cg.connect(c.destination); s.start(ct); s.stop(ct+0.06); }
+}
+
 /* ======================= VOICES (Web Speech, male-preferred) ======================= */
 var synth = window.speechSynthesis || null;
 var MALE = {
@@ -177,7 +224,7 @@ function pickVoice(lang, list){
 var chosen={en:null,ja:null};
 function refreshVoices(){ chosen.en=pickVoice('en'); chosen.ja=pickVoice('ja'); renderVoiceStatus(); }
 var keepUtt=null;
-function speakDevice(text, lang){
+function speakDevice(text, lang, pitch){
   return new Promise(function(resolve){
     if(!synth){ resolve(false); return; }
     try{ synth.cancel(); }catch(e){}
@@ -185,7 +232,7 @@ function speakDevice(text, lang){
     var v=chosen[lang]||pickVoice(lang);
     u.lang = v ? v.lang : (lang==='ja'?'ja-JP':'en-GB');
     if(v) u.voice=v;
-    u.rate = 0.8; u.pitch = lang==='ja' ? 1.1 : 1.0;
+    u.rate = 0.8; u.pitch = pitch || (lang==='ja' ? 1.1 : 1.0);
     var done=false; function fin(ok){ if(!done){done=true; clearTimeout(t); resolve(ok);} }
     u.onend=function(){fin(true);}; u.onerror=function(){fin(false);};
     var t=setTimeout(function(){fin(true);}, 1500+text.length*260);
@@ -199,7 +246,7 @@ function loadNeural(){
   if(!neuralWanted() || neural.state==='loading' || (neural.state==='ready' && NeuralTTS.isReady(settings.neuralVoice))) return;
   neural.state='loading'; neural.pct=0; renderVoiceStatus();
   NeuralTTS.load(settings.neuralVoice, function(p){ if(p.total){ neural.pct=Math.round(p.loaded*100/p.total); renderVoiceStatusThrottled(); } })
-    .then(function(){ neural.state='ready'; neural.err=null; renderVoiceStatus(); prefetch(); })
+    .then(function(){ neural.state='ready'; neural.err=null; renderVoiceStatus(); prefetch(); warmPhrases(); })
     .catch(function(e){ neural.state='failed'; neural.err=String(e&&e.message||e); console.warn('Neural TTS failed, using device voice', e); renderVoiceStatus(); });
 }
 function englishText(item, wordOnly){
@@ -218,13 +265,24 @@ function warm(items, wordOnly){
   items.forEach(function(it){ if(it && it.lang==='en') NeuralTTS.synth(englishText(it,wordOnly),{voiceKey:settings.neuralVoice, lengthScale:LS_SCALE}).catch(function(){}); });
 }
 function prefetch(){ var d=deck(), i=pos[curKey()]||0; if(d.length) warm([d[i], d[(i+1)%d.length]]); }
-function sayText(text, lang){
+function sayText(text, lang, o){
+  o=o||{};
   if(lang==='en' && neuralWanted() && neural.state==='ready'){
-    return NeuralTTS.play(text,{voiceKey:settings.neuralVoice, lengthScale:LS_SCALE, audioCtx:ctx()})
-      .then(function(){return true;}).catch(function(e){ console.warn('neural play failed', e); return speakDevice(text,'en'); });
+    return NeuralTTS.play(text,{voiceKey:settings.neuralVoice, lengthScale:o.lengthScale||LS_SCALE, rate:o.rate, audioCtx:ctx()})
+      .then(function(){return true;}).catch(function(e){ console.warn('neural play failed', e); return speakDevice(text,'en',o.pitch); });
   }
-  return speakDevice(text, lang);
+  return speakDevice(text, lang, o.pitch);
 }
+// Fixed game phrases (English voice path). rate = playback rate (slightly higher pitch = playful); lengthScale compensates so speed stays gentle.
+var PHRASES = {
+  nono: {text:'No, no, no!', lengthScale:1.3, rate:1.13, pitch:1.25},
+  yay:  {text:'You did it!', lengthScale:1.15, rate:1.08, pitch:1.2}
+};
+function warmPhrases(){
+  if(neural.state!=='ready') return;
+  Object.keys(PHRASES).forEach(function(k){ var p=PHRASES[k]; NeuralTTS.synth(p.text,{voiceKey:settings.neuralVoice, lengthScale:p.lengthScale}).catch(function(){}); });
+}
+function sayPhrase(k){ var p=PHRASES[k]; return sayText(p.text,'en',p); }
 function say(item, wordOnly){ return item.lang==='en' ? sayText(englishText(item,wordOnly),'en') : sayText(japaneseText(item,wordOnly),'ja'); }
 function hush(){ try{synth&&synth.cancel();}catch(e){} NeuralTTS.stop(); }
 
@@ -329,15 +387,23 @@ function go(delta){
   render(true);
 }
 function stopAll(){ busy=false; el.play.classList.remove('busy'); hush(); clearTimeout(advanceTimer); }
-function confetti(n){
+function starPts(cx,cy,R,r,k){ var s=''; for(var i=0;i<k*2;i++){ var rad=i%2?r:R, a=-Math.PI/2+i*Math.PI/k; s+=(i?'L':'M')+(cx+rad*Math.cos(a)).toFixed(1)+' '+(cy+rad*Math.sin(a)).toFixed(1); } return s+'Z'; }
+var CONF_SHAPES = [
+  function(col){ return '<svg viewBox="0 0 24 24"><path d="'+starPts(12,12.8,11,4.8,5)+'" fill="'+col+'" stroke="#3b2b5a" stroke-width="1.6" stroke-linejoin="round"/></svg>'; },
+  function(col){ return '<svg viewBox="0 0 24 24"><path d="M12 21C6 17 2.5 13.2 2.5 9.2 2.5 6.3 4.7 4 7.4 4c2 0 3.6 1.1 4.6 2.7C13 5.1 14.6 4 16.6 4c2.7 0 4.9 2.3 4.9 5.2 0 4-3.5 7.8-9.5 11.8z" fill="'+col+'" stroke="#3b2b5a" stroke-width="1.6" stroke-linejoin="round"/></svg>'; },
+  function(col){ return '<svg viewBox="0 0 24 24"><path d="M3 15c3-6 6-6 9 0s6 6 9 0" fill="none" stroke="'+col+'" stroke-width="4.5" stroke-linecap="round"/></svg>'; }
+];
+function confetti(n, fancy){
   var colors=['#ff4f8b','#ffd84d','#4fb3ff','#2ec27e','#ff7a59','#a970ff'];
   for(var k=0;k<n;k++){
     var c=document.createElement('div'); c.className='confetti';
-    c.style.left=(Math.random()*100)+'vw'; c.style.background=colors[k%colors.length];
-    c.style.animationDuration=(1.2+Math.random()*1.3)+'s'; c.style.animationDelay=(Math.random()*0.3)+'s';
-    if(k%3===0){ c.style.borderRadius='50%'; c.style.width=c.style.height='12px'; }
+    c.style.left=(Math.random()*100)+'vw';
+    var dur=fancy?(1.8+Math.random()*1.6):(1.2+Math.random()*1.3), delay=Math.random()*(fancy?0.8:0.3);
+    c.style.animationDuration=dur+'s'; c.style.animationDelay=delay+'s';
+    if(fancy && k%2===1){ c.className='confetti shape'; c.innerHTML=CONF_SHAPES[(k>>1)%CONF_SHAPES.length](colors[(Math.random()*colors.length)|0]); var sz=(20+Math.random()*16)|0; c.style.width=c.style.height=sz+'px'; }
+    else { c.style.background=colors[k%colors.length]; if(k%3===0){ c.style.borderRadius='50%'; c.style.width=c.style.height='12px'; } }
     el.celebrate.appendChild(c);
-    setTimeout(function(nd){return function(){nd.remove();};}(c), 3000);
+    setTimeout(function(nd){return function(){nd.remove();};}(c), (dur+delay)*1000+200);
   }
 }
 function celebrate(){
@@ -382,7 +448,7 @@ async function playRound(){
 }
 
 /* ======================= MATCH GAME ======================= */
-var M = {deck:null, cards:[], open:[], lock:false, matched:0, pairs:0, timer:null};
+var M = {deck:null, cards:[], open:[], lock:false, matched:0, pairs:0, timer:null, gen:0};
 var MATCH_DECKS = [
   {id:'en', label:'ABC', pv:function(){return ART.apple;}},
   {id:'ja', label:'あいう', pv:function(){return ART.ant;}},
@@ -390,10 +456,44 @@ var MATCH_DECKS = [
   {id:'numja', label:'いち に さん', pv:function(){return countSVG(3,'flower');}},
   {id:'my', label:'My Words', pv:function(){ var d=myDeck(); return d.length? pictureHTML(d[0]) : ART.star; }, wide:true}
 ];
+// Big mode chips at the top of the Match screen. "Pictures" opens the deck picker; the others start a board straight away.
+var MATCH_MODES = [
+  {id:'pics',    label:'Pictures', pv:function(){ return ART.apple; }},
+  {id:'letters', label:'Letters',  pv:function(){ return '<span class="gl">A</span>'; }},
+  {id:'animals', label:'Animals',  pv:function(){ return ART.cat; }}
+];
+// Animals for the Animal memory game (all original SVGs from art.js); the name is spoken on flip.
+var ANIMALS = [['cat','Cat'],['dog','Dog'],['rabbit','Rabbit'],['elephant','Elephant'],['fish','Fish'],['lion','Lion'],['pig','Pig'],
+  ['whale','Whale'],['zebra','Zebra'],['giraffe','Giraffe'],['koala','Koala'],['deer','Deer'],['bird','Bird'],['snake','Snake'],
+  ['butterfly','Butterfly'],['crocodile','Crocodile'],['ant','Ant'],['caterpillar','Caterpillar']
+].filter(function(r){ return ART[r[0]]; }).map(function(r){ return {lang:'en',letter:'',word:r[1],art:r[0],alts:[],sub:''}; });
+// Letters game: letters come from the parent setting "letterSet" (e.g. "ABC" or "S, A, M"); blank = all of A–Z.
+// Each round picks a random subset, one pair per letter, count = Pairs setting.
+var LETTERS_AZ='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+var LETTER_COLORS=['#ff4f8b','#2b8fe0','#1f9e63','#f08c00','#7b4fd6','#e8434b'];
+function letterPool(){
+  var seen={}, out=[];
+  Array.from(String(settings.letterSet||'').toUpperCase()).forEach(function(ch){ if(/^[A-Z]$/.test(ch) && !seen[ch]){ seen[ch]=1; out.push(ch); } });
+  return out.length>=2 ? out : LETTERS_AZ.split('');
+}
+function letterItems(){ return letterPool().map(function(ch){ return {lang:'en',letter:ch,word:ch,glyph:true,alts:[],sub:'',speak:ch+'.'}; }); }
+function matchItems(id){ if(id==='letters') return letterItems(); if(id==='animals') return ANIMALS; return deckById(id); }
+function modeOf(id){ return (id==='letters'||id==='animals') ? id : 'pics'; }
+function renderModes(active){
+  var box=$('mModes'); box.innerHTML='';
+  MATCH_MODES.forEach(function(md){
+    var b=document.createElement('button'); b.className='mmode'+(md.id===active?' on':''); b.dataset.mode=md.id;
+    b.setAttribute('aria-pressed', md.id===active?'true':'false');
+    b.innerHTML='<span class="cv">'+md.pv()+'</span><span>'+md.label+'</span>';
+    b.addEventListener('click', function(){ ctx(); softPop(); if(md.id==='pics') showPicker(); else startMatch(md.id); });
+    box.appendChild(b);
+  });
+}
 function openMatch(){ runId++; stopAll(); $('matchView').classList.add('open'); showPicker(); }
-function closeMatch(){ clearTimeout(M.timer); hush(); $('matchView').classList.remove('open'); $('mWin').classList.remove('show'); render(true); }
+function closeMatch(){ M.gen++; clearTimeout(M.timer); hush(); $('matchView').classList.remove('open'); $('mWin').classList.remove('show'); render(true); }
 function showPicker(){
-  clearTimeout(M.timer); hush();
+  M.gen++; clearTimeout(M.timer); hush();
+  renderModes('pics');
   $('mWin').classList.remove('show'); $('mGrid').classList.add('hidden'); $('mPick').classList.remove('hidden');
   $('mTitle').textContent='Match!'; $('mBack').style.visibility='hidden';
   var box=$('mPick'); box.innerHTML='';
@@ -406,26 +506,31 @@ function showPicker(){
   });
 }
 function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
-function picKey(it){ return it.img ? 'img:'+it.id : it.count ? 'n'+it.count : it.art ? 'art:'+it.art : it.emoji ? 'emo:'+it.emoji : 'w:'+it.word; }
+function picKey(it){ return it.glyph ? 'L:'+it.letter : it.img ? 'img:'+it.id : it.count ? 'n'+it.count : it.art ? 'art:'+it.art : it.emoji ? 'emo:'+it.emoji : 'w:'+it.word; }
 function startMatch(id){
-  M.deck=id; clearTimeout(M.timer); hush();
-  var seen={}, pool=[];
-  shuffle(deckById(id).slice()).forEach(function(it){ var k=picKey(it); if(!seen[k]){ seen[k]=1; pool.push(it); } });
+  M.deck=id; M.gen++; clearTimeout(M.timer); hush();
+  var mode=modeOf(id), seen={}, pool=[];
+  shuffle(matchItems(id).slice()).forEach(function(it){ var k=picKey(it); if(!seen[k]){ seen[k]=1; pool.push(it); } });
   var n=Math.max(1,Math.min(6, Math.max(2,+settings.pairs||3), pool.length));
   var picked=pool.slice(0,n), cards=[];
   picked.forEach(function(it,idx){
+    if(mode==='letters'){ cards.push({pair:idx,item:it,kind:'glyph'}); cards.push({pair:idx,item:it,kind:'glyph'}); return; }
     cards.push({pair:idx, item:it, kind:'pic'});
-    cards.push({pair:idx, item:it, kind: settings.matchMode==='letter' ? 'label' : 'pic'});
+    cards.push({pair:idx, item:it, kind: (mode==='pics' && settings.matchMode==='letter') ? 'label' : 'pic'});
   });
   M.cards=shuffle(cards); M.open=[]; M.lock=false; M.matched=0; M.pairs=n;
+  renderModes(mode);
   var md=MATCH_DECKS.filter(function(x){return x.id===id;})[0];
-  $('mTitle').textContent=md?md.label:'Match!'; $('mBack').style.visibility='visible';
+  $('mTitle').textContent= mode==='letters' ? 'Letters' : mode==='animals' ? 'Animals' : (md?md.label:'Match!');
+  $('mBack').style.visibility='visible';
   $('mPick').classList.add('hidden'); $('mWin').classList.remove('show');
   var grid=$('mGrid'); grid.classList.remove('hidden'); grid.innerHTML='';
   M.cards.forEach(function(c,i){
     var b=document.createElement('button'); b.className='mcard'; b.setAttribute('aria-label','card '+(i+1));
     var face;
-    if(c.kind==='label'){
+    if(c.kind==='glyph'){
+      face='<div class="art"><span class="glyph letterglyph" style="font-size:4.4em;color:'+LETTER_COLORS[c.pair%LETTER_COLORS.length]+'">'+esc(c.item.letter)+'</span></div>';
+    } else if(c.kind==='label'){
       var gl = (id==='my') ? c.item.word : c.item.letter;
       face='<div class="art"><span class="glyph" style="font-size:'+(Array.from(gl).length>2?'1.7em':'3.6em')+'">'+esc(gl)+'</span></div>';
     } else {
@@ -436,7 +541,7 @@ function startMatch(id){
     c.el=b; grid.appendChild(b);
   });
   layoutGrid();
-  warm(picked, true);
+  warm(picked, true); warmPhrases();
 }
 function layoutGrid(){
   var grid=$('mGrid'), body=$('mBody'); if(grid.classList.contains('hidden') || !M.cards.length) return;
@@ -460,36 +565,54 @@ function sparkleAt(elm){
     document.body.appendChild(s); setTimeout(function(nd){return function(){nd.remove();};}(s), 1000);
   }
 }
+function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
 function flip(i){
   var c=M.cards[i];
   if(!c || M.lock || c.up || c.done) return;
   ctx(); softPop();
   c.up=true; c.el.classList.add('up'); M.open.push(c);
-  say(c.item, true);
+  var spoken=say(c.item, true);
   if(M.open.length<2) return;
-  var a=M.open[0], z=M.open[1]; M.open=[]; M.lock=true;
-  if(a.pair===z.pair){
-    M.timer=setTimeout(function(){
-      a.done=z.done=true; a.el.classList.add('done','bump'); z.el.classList.add('done','bump');
-      chime(true); sparkleAt(a.el); sparkleAt(z.el);
-      setTimeout(function(){ say(a.item, true); }, 350);
-      M.matched++; M.lock=false;
-      if(M.matched===M.pairs) M.timer=setTimeout(win, 1500);
-    }, 450);
-  } else {
-    M.timer=setTimeout(function(){ a.up=z.up=false; a.el.classList.remove('up'); z.el.classList.remove('up'); M.lock=false; }, 1200);
-  }
+  var a=M.open[0], z=M.open[1], gen=M.gen; M.open=[]; M.lock=true;
+  if(a.pair===z.pair) M.timer=setTimeout(function(){ if(gen===M.gen) matchFound(a,z); }, 650);
+  else wrongPair(a, z, spoken, gen);
 }
+// Pair found: swoosh + sparkles, and both cards spin away and vanish
+function matchFound(a,z){
+  a.done=z.done=true;
+  swoosh(); sparkleAt(a.el); sparkleAt(z.el);
+  a.el.classList.add('done','gone'); z.el.classList.add('done','gone');
+  M.matched++;
+  if(M.matched===M.pairs){ var gen=M.gen; M.timer=setTimeout(function(){ if(gen===M.gen) win(); }, 900); }
+  else M.lock=false;
+}
+// Wrong pair: let the child see both cards and hear the word, then a gentle sing-song "No, no, no!" and flip them back
+function wrongPair(a, z, spoken, gen){
+  Promise.race([Promise.all([spoken, wait(700)]), wait(4000)]).then(function(){
+    if(gen!==M.gen) return;
+    a.el.classList.add('nope'); z.el.classList.add('nope');
+    return Promise.race([sayPhrase('nono'), wait(3500)]);
+  }).then(function(){
+    if(gen!==M.gen) return;
+    M.timer=setTimeout(function(){
+      if(gen!==M.gen) return;
+      a.up=z.up=false; a.el.classList.remove('up','nope'); z.el.classList.remove('up','nope'); M.lock=false;
+    }, 250);
+  });
+}
+// Board cleared: fanfare + cheer, confetti (CSS bits + original drawn stars/hearts), big "You Did It!!", spoken "You did it!", Play again
 function win(){
-  var ja = (M.deck==='ja'||M.deck==='numja');
-  $('wText').textContent = ja ? 'やったね！' : 'Yay! You did it!';
-  $('mWin').classList.add('show'); chime(); confetti(60);
-  sayText(ja ? 'やったね！ すごい！' : 'Well done! Brilliant!', ja?'ja':'en');
+  var ja = (M.deck==='ja'||M.deck==='numja'), gen=M.gen;
+  $('wText').textContent = 'You Did It!!';
+  $('wSub').textContent = ja ? 'やったね！' : '';
+  var w=$('mWin'); w.classList.remove('show'); void w.offsetWidth; w.classList.add('show');
+  fanfare(); confetti(80, true);
+  M.timer=setTimeout(function(){ if(gen===M.gen) sayPhrase('yay'); }, 1300);
 }
 $('matchBtn').addEventListener('click', openMatch);
 $('mHome').addEventListener('click', closeMatch);
 $('mBack').addEventListener('click', showPicker);
-$('wAgain').addEventListener('click', function(){ startMatch(M.deck); });
+$('wAgain').addEventListener('click', function(){ ctx(); startMatch(M.deck); });
 $('wOther').addEventListener('click', showPicker);
 
 /* ======================= EVENTS ======================= */
@@ -576,13 +699,14 @@ function renderList(){
 var sNeural=$('sNeural');
 NeuralTTS.VOICES.forEach(function(v){ var o=document.createElement('option'); o.value=v.key; o.textContent=v.label; sNeural.appendChild(o); });
 $('sVoiceMode').value=settings.voiceMode; sNeural.value=settings.neuralVoice; $('sListen').checked=settings.listen; $('sSayLetter').checked=settings.sayLetter;
-$('sPairs').value=String(settings.pairs); $('sMatchMode').value=settings.matchMode;
+$('sPairs').value=String(settings.pairs); $('sMatchMode').value=settings.matchMode; $('sLetterSet').value=settings.letterSet||'';
 $('sVoiceMode').addEventListener('change', function(){ settings.voiceMode=this.value; saveSettings(); loadNeural(); renderVoiceStatus(); });
 sNeural.addEventListener('change', function(){ settings.neuralVoice=this.value; saveSettings(); neural.state='idle'; loadNeural(); });
 $('sListen').addEventListener('change', function(){ settings.listen=this.checked; saveSettings(); });
 $('sSayLetter').addEventListener('change', function(){ settings.sayLetter=this.checked; saveSettings(); });
 $('sPairs').addEventListener('change', function(){ settings.pairs=+this.value; saveSettings(); });
 $('sMatchMode').addEventListener('change', function(){ settings.matchMode=this.value; saveSettings(); });
+$('sLetterSet').addEventListener('change', function(){ settings.letterSet=this.value.trim(); saveSettings(); });
 $('testEn').addEventListener('click', function(){ ctx(); sayText('Good morning. Shall we learn some letters?','en'); });
 $('testJa').addEventListener('click', function(){ ctx(); sayText('おはよう。 いっしょに あいうえおを いおう。','ja'); });
 var rvT=0; function renderVoiceStatusThrottled(){ var t=Date.now(); if(t-rvT>250){ rvT=t; renderVoiceStatus(); } }
@@ -607,5 +731,6 @@ render(false);
 if(!SR) note('Listening needs Chrome or Edge. You can still play words and use “Good job” / “Next”.');
 loadNeural();
 window.TW = {matches:matches, deck:deck, deckById:deckById, EN:EN, JA:JA, NUM_EN:NUM_EN, NUM_JA:NUM_JA, settings:settings, neural:neural, chosen:chosen,
-  openParent:openParent, pickVoice:pickVoice, go:go, celebrate:celebrate, openMatch:openMatch, startMatch:startMatch, showPicker:showPicker, M:M, flip:flip, pictureHTML:pictureHTML};
+  openParent:openParent, pickVoice:pickVoice, go:go, celebrate:celebrate, openMatch:openMatch, startMatch:startMatch, showPicker:showPicker, M:M, flip:flip, pictureHTML:pictureHTML,
+  ANIMALS:ANIMALS, letterPool:letterPool, matchItems:matchItems, PHRASES:PHRASES, sayPhrase:sayPhrase, swoosh:swoosh, fanfare:fanfare, win:win, MATCH_MODES:MATCH_MODES};
 })();

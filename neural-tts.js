@@ -11,7 +11,7 @@
  *   await NeuralTTS.load(voiceKey, onProgress) -> loads runtime + model (idempotent)
  *   NeuralTTS.isReady(voiceKey)
  *   await NeuralTTS.synth(text, {lengthScale}) -> {pcm: Float32Array, sampleRate}
- *   await NeuralTTS.play(text, {lengthScale, audioCtx}) -> resolves when playback ends
+ *   await NeuralTTS.play(text, {lengthScale, audioCtx, rate}) -> resolves when playback ends (rate = playbackRate)
  *   await NeuralTTS.wav(text, opts)            -> Blob (audio/wav)
  */
 (function () {
@@ -192,6 +192,7 @@
     return new Promise(function (resolve) {
       var src = ctx.createBufferSource();
       src.buffer = buf;
+      if (opts.rate && opts.rate !== 1) src.playbackRate.value = opts.rate;   // >1 = brighter/playful (pitch + speed)
       var g = ctx.createGain(); g.gain.value = opts.volume || 1;
       src.connect(g); g.connect(ctx.destination);
       src.onended = function () { if (current === src) current = null; resolve(); };

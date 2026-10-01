@@ -6,7 +6,7 @@ A free early-learning web app for little ones: press the big button, hear the wo
 - **あいう**: the 46 Japanese hiragana, each with a word and picture
 - **123**: numbers 1 to 10 in English and Japanese, with things to count
 - **Mine**: words a parent adds (hold the gear for 3 seconds)
-- **Match**: a gentle flip-the-cards memory game
+- **Match**: a gentle flip-the-cards memory game with big **Pictures / Letters / Animals** mode chips. Matched pairs swoosh away, a wrong pair gets a gentle "No, no, no!", and clearing the board brings a fanfare, confetti and "You did it!" (all sounds synthesized with the Web Audio API)
 
 Works best in Chrome or Edge. Allow the microphone when asked. Edge gives a male Japanese voice.
 
