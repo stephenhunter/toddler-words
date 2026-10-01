@@ -1,0 +1,13 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Toddler Words – art contact sheet</title>
+<style>body{font-family:system-ui,sans-serif;background:#f6f3fa;margin:16px;color:#3b2b5a}h1{font-size:20px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.cell{background:#fff;border-radius:14px;padding:8px;text-align:center;box-shadow:0 2px 0 rgba(0,0,0,.06)}
+.cell svg{width:120px;height:120px;display:block;margin:0 auto}.cell div{font-size:13px;margin-top:4px}.cell code{font-size:11px;color:#998}
+.icons .cell svg{width:60px;height:60px;color:#ff4f8b}</style></head><body>
+<h1>Toddler Words — original SVG illustrations (<span id="n"></span>)</h1><div class="grid" id="g"></div>
+<h1 style="margin-top:18px">UI icons + card back</h1><div class="grid icons" id="ic"></div>
+<script src="art.js"></script><script>
+var g=document.getElementById('g'),k=Object.keys(ART);document.getElementById('n').textContent=k.length;
+k.forEach(function(x){var d=document.createElement('div');d.className='cell';d.innerHTML=ART[x]+'<div>'+ART_LABELS[x]+'</div><code>'+x+'</code>';g.appendChild(d);});
+var ic=document.getElementById('ic');Object.keys(ICONS).forEach(function(x){var d=document.createElement('div');d.className='cell';d.innerHTML=ICONS[x]+'<code>'+x+'</code>';ic.appendChild(d);});
+var d=document.createElement('div');d.className='cell';d.innerHTML=ART_BACK.replace('<svg ','<svg style="width:120px;height:120px" ')+'<code>card back</code>';ic.appendChild(d);
+</script></body></html>
