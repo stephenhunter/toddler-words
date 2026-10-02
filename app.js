@@ -1,4 +1,4 @@
-/* Toddler Words v3 — app logic. Requires art.js (ART, ICONS) and neural-tts.js (NeuralTTS). */
+/* Toddler Words v4 — app logic. Requires art.js (ART, ICONS) and neural-tts.js (NeuralTTS). */
 (function(){
 'use strict';
 document.querySelectorAll('[data-icon]').forEach(function(n){ n.innerHTML = ICONS[n.dataset.icon] || ''; });
@@ -66,24 +66,36 @@ var JA = [
 ].map(function(r){return {lang:'ja',letter:r[0],word:r[1],art:r[2],sub:r[3]+' · '+r[4],alts:r[5]||[],speak:r[6]||null};});
 
 // Numbers 1–10 (one counting object per number)
-var COUNT_ART = ['sun','ball','apple','fish','star','flower','egg','orange','bird','lemon'];
+// Numbers 1–20 (one kind of counting object per number; 11–20 are drawn in ten-frames)
+var COUNT_ART = ['sun','ball','apple','fish','star','flower','egg','orange','bird','lemon',
+                 'peach','car','kite','butterfly','carrot','tree','rocket','icecream','snowflake','cake'];
 var NUM_EN = [
  ['one',['1','won','wan']],['two',['2','to','too','tu']],['three',['3','tree','free']],['four',['4','for','fore']],['five',['5','fife']],
- ['six',['6','sicks']],['seven',['7']],['eight',['8','ate']],['nine',['9','nein']],['ten',['10','tin']]
+ ['six',['6','sicks']],['seven',['7']],['eight',['8','ate']],['nine',['9','nein']],['ten',['10','tin']],
+ ['eleven',['11','elven','leven']],['twelve',['12','twelf']],['thirteen',['13','thirty','firteen']],['fourteen',['14','forty','fourty']],
+ ['fifteen',['15','fifty']],['sixteen',['16','sixty']],['seventeen',['17','seventy']],['eighteen',['18','eighty','eightteen']],
+ ['nineteen',['19','ninety']],['twenty',['20','twenny','twendy']]
 ].map(function(r,i){ var n=i+1; return {lang:'en',letter:String(n),word:r[0],count:n,art:COUNT_ART[i],alts:r[1],sub:'',speak:r[0].charAt(0).toUpperCase()+r[0].slice(1)+'.'}; });
+// Japanese: common readings (よん 4, なな 7, きゅう 9); 11–19 = じゅう + 1–9, 20 = にじゅう
 var NUM_JA = [
  ['いち','ichi',['一','1','イチ']],['に','ni',['二','2','ニ']],['さん','san',['三','3','サン']],['よん','yon',['四','4','ヨン','し','シ']],
  ['ご','go',['五','5','ゴ']],['ろく','roku',['六','6','ロク']],['なな','nana',['七','7','ナナ','しち','シチ']],['はち','hachi',['八','8','ハチ']],
- ['きゅう','kyū',['九','9','キュウ','く','ク']],['じゅう','jū',['十','10','ジュウ','とお']]
-].map(function(r,i){ var n=i+1, kanji='一二三四五六七八九十'.charAt(i); return {lang:'ja',letter:String(n),word:r[0],count:n,art:COUNT_ART[i],alts:r[2],sub:r[1]+' · '+kanji+' · '+n,speak:r[0]+'。'}; });
+ ['きゅう','kyū',['九','9','キュウ','く','ク']],['じゅう','jū',['十','10','ジュウ','とお']],
+ ['じゅういち','jūichi',['十一','11','ジュウイチ']],['じゅうに','jūni',['十二','12','ジュウニ']],['じゅうさん','jūsan',['十三','13','ジュウサン']],
+ ['じゅうよん','jūyon',['十四','14','ジュウヨン','じゅうし','ジュウシ']],['じゅうご','jūgo',['十五','15','ジュウゴ']],['じゅうろく','jūroku',['十六','16','ジュウロク']],
+ ['じゅうなな','jūnana',['十七','17','ジュウナナ','じゅうしち','ジュウシチ']],['じゅうはち','jūhachi',['十八','18','ジュウハチ']],
+ ['じゅうきゅう','jūkyū',['十九','19','ジュウキュウ','じゅうく','ジュウク']],['にじゅう','nijū',['二十','20','ニジュウ']]
+].map(function(r,i){ var n=i+1, kanji = n<=10 ? '一二三四五六七八九十'.charAt(i) : n===20 ? '二十' : '十'+'一二三四五六七八九'.charAt(n-11);
+  return {lang:'ja',letter:String(n),word:r[0],count:n,art:COUNT_ART[i],alts:r[2],sub:r[1]+' · '+kanji+' · '+n,speak:r[0]+'。'}; });
 
 /* ======================= STORAGE ======================= */
 var LS = {
   get:function(k,d){try{var v=localStorage.getItem('tw.'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},
   set:function(k,v){try{localStorage.setItem('tw.'+k,JSON.stringify(v));return true;}catch(e){alert('Could not save (storage full?). Try a smaller photo.');return false;}}
 };
-var settings = Object.assign({voiceMode:'neural', neuralVoice:NeuralTTS.VOICES[0].key, listen:true, sayLetter:true, pairs:3, matchMode:'pic', letterSet:''}, LS.get('settings',{}));
+var settings = Object.assign({voiceMode:'neural', neuralVoice:NeuralTTS.VOICES[0].key, listen:true, sayLetter:true, pairs:3, matchMode:'pic', letterSet:'', childName:'Theo', autoNext:true, anySpeech:true, micMeter:!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'')}, LS.get('settings',{}));
 if(!NeuralTTS.VOICES.some(function(v){return v.key===settings.neuralVoice;})) settings.neuralVoice=NeuralTTS.VOICES[0].key;
+if((settings.voiceV||0)<4){ settings.neuralVoice=NeuralTTS.VOICES[0].key; settings.voiceV=4; LS.set('settings',settings); }   // v4: switch everyone to the new default (American tenor) once
 function saveSettings(){LS.set('settings',settings);}
 var neural = {state:'idle', err:null, pct:0};
 var custom = LS.get('custom',[]);
@@ -101,7 +113,22 @@ function isJa(){ var k=curKey(); return k==='ja'||k==='numja'; }
 /* ======================= PICTURES ======================= */
 var COUNT_ROWS = {1:[1],2:[2],3:[3],4:[2,2],5:[3,2],6:[3,3],7:[4,3],8:[4,4],9:[3,3,3],10:[5,5]};
 var COUNT_ROWS_SQ = {1:[1],2:[2],3:[2,1],4:[2,2],5:[3,2],6:[3,3],7:[2,3,2],8:[3,2,3],9:[3,3,3],10:[3,4,3]};   // squarer, for small cards
+// 11–20: stacked ten-frames (2 rows of 5 per frame); empty cells stay visible so the "ten and some more" shape is easy to see
+function tenFrameSVG(n, key){
+  var cell=100, pad=10, gap=26, fh=2*cell+pad*2, W=5*cell+pad*2, frames=Math.ceil(n/10), H=frames*fh+(frames-1)*gap, out='', art=(ART[key]||ART.star);
+  for(var f=0; f<frames; f++){
+    var y0=f*(fh+gap);
+    out+='<rect x="3" y="'+(y0+3)+'" width="'+(W-6)+'" height="'+(fh-6)+'" rx="24" fill="#fff3d6" stroke="#3b2b5a" stroke-width="5"/>';
+    for(var r=0;r<2;r++) for(var c=0;c<5;c++){
+      var idx=f*10+r*5+c, x=pad+c*cell, y=y0+pad+r*cell;
+      out+='<rect x="'+(x+5)+'" y="'+(y+5)+'" width="'+(cell-10)+'" height="'+(cell-10)+'" rx="16" fill="'+(idx<n?'#ffffff':'#f6ead0')+'" stroke="#e7d6b3" stroke-width="3"/>';
+      if(idx<n) out+=art.replace('<svg ','<svg x="'+(x+8)+'" y="'+(y+8)+'" width="'+(cell-16)+'" height="'+(cell-16)+'" ');
+    }
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" role="img">'+out+'</svg>';
+}
 function countSVG(n, key, square){
+  if(n>10) return tenFrameSVG(n, key);
   var rows=(square?COUNT_ROWS_SQ:COUNT_ROWS)[n]||[n], maxr=Math.max.apply(null,rows), cell=100, W=maxr*cell, H=rows.length*cell, out='';
   var art=(ART[key]||ART.star);
   rows.forEach(function(cnt,ri){
@@ -123,7 +150,7 @@ function pictureHTML(it, square){
 var $=function(id){return document.getElementById(id);};
 var el={card:$('card'),pic:$('pic'),letter:$('letter'),word:$('word'),sub:$('sub'),status:$('status'),statusText:$('statusText'),
   play:$('play'),note:$('note'),progBar:$('progBar'),count:$('count'),bigstar:$('bigstar'),celebrate:$('celebrate')};
-el.bigstar.innerHTML=ART.star; $('wStar').innerHTML=ART.star;
+el.bigstar.innerHTML=ART.star; $('wStar').innerHTML=ART.star; $('dStar').innerHTML=ART.star;
 
 /* ======================= SOUNDS ======================= */
 var actx=null;
@@ -195,17 +222,36 @@ function cheer(st){
     s.connect(bp); bp.connect(cg); cg.connect(c.destination); s.start(ct); s.stop(ct+0.06); }
 }
 
+// End of deck: synthesized applause (many short band-passed noise "claps" from ~10 virtual clappers) + crowd cheer + chime
+function applause(){
+  var c=ctx(); if(!c) return; var t0=c.currentTime+0.05, dur=2.8, cb=noiseBuf(c,0.09);
+  for(var p=0;p<10;p++){
+    var rate=3.6+Math.random()*2.2, t=t0+Math.random()*0.35, f=900+Math.random()*1600, pan=Math.random()*1.6-0.8;
+    while(t<t0+dur){
+      var fade=Math.min(1,(t0+dur-t)/0.9), s=c.createBufferSource(); s.buffer=cb;
+      var bp=c.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=f*(0.9+Math.random()*0.2); bp.Q.value=1.1;
+      var g=c.createGain(), v=(0.16+Math.random()*0.1)*fade;
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(v,t+0.004); g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
+      s.connect(bp); bp.connect(g);
+      if(c.createStereoPanner){ var pn=c.createStereoPanner(); pn.pan.value=pan; g.connect(pn); pn.connect(c.destination); } else g.connect(c.destination);
+      s.start(t); s.stop(t+0.09);
+      t+=1/rate*(0.85+Math.random()*0.3);
+    }
+  }
+  cheer(t0+0.1); chime();
+}
+
 /* ======================= VOICES (Web Speech, male-preferred) ======================= */
 var synth = window.speechSynthesis || null;
 var MALE = {
-  en: [/daniel/i,/arthur/i,/google uk english male/i,/\bryan\b/i,/\bgeorge\b/i,/\bthomas\b/i,/\boliver\b/i,/\balfie\b/i,/\belliot\b/i,/\bethan\b/i,/\bnoah\b/i,/\bmalcolm\b/i,/\bguy\b/i,/\bdavid\b/i,/\bmark\b/i,/\bandrew\b/i,/\bbrian\b/i,/\bchristopher\b/i,/\beric\b/i,/\broger\b/i,/\bsteffan\b/i,/\balex\b/i,/\baaron\b/i,/\bfred\b/i,/\btom\b/i,/\bjames\b/i,/\brishi\b/i,/\bgordon\b/i,/\blee\b/i,/\bmale\b/i],
+  en: [/\bandrew\b/i,/\bbrian\b/i,/\bguy\b/i,/\bchristopher\b/i,/\beric\b/i,/\broger\b/i,/\bsteffan\b/i,/\bdavis\b/i,/\btony\b/i,/\bjason\b/i,/\baaron\b/i,/\balex\b/i,/\bevan\b/i,/\bnathan\b/i,/\btom\b/i,/\bfred\b/i,/daniel/i,/arthur/i,/google uk english male/i,/\bryan\b/i,/\bgeorge\b/i,/\bthomas\b/i,/\boliver\b/i,/\balfie\b/i,/\belliot\b/i,/\bethan\b/i,/\bnoah\b/i,/\bmalcolm\b/i,/\bguy\b/i,/\bdavid\b/i,/\bmark\b/i,/\bandrew\b/i,/\bbrian\b/i,/\bchristopher\b/i,/\beric\b/i,/\broger\b/i,/\bsteffan\b/i,/\balex\b/i,/\baaron\b/i,/\bfred\b/i,/\btom\b/i,/\bjames\b/i,/\brishi\b/i,/\bgordon\b/i,/\blee\b/i,/\bmale\b/i],
   ja: [/keita/i,/daichi/i,/naoki/i,/otoya/i,/hattori/i,/ichiro/i,/kenji/i,/takumi/i,/\bmale\b/i,/男性/]
 };
 var FEMALE = /female|serena|kate|libby|sonia|hazel|susan|fiona|moira|tessa|karen|samantha|victoria|zira|aria|jenny|emma|ava|allison|kyoko|nanami|ayumi|haruka|sayaka|o-ren|mizuki|mayu|shiori|aoi|nanako|martha|catherine|stephanie|amy|joanna|salli|kimberly|ivy|kendra|女性|google 日本語|google us english$/i;
 function voiceList(){ return synth? synth.getVoices():[]; }
 function pickVoice(lang, list){
   var vs=list||voiceList(); if(!vs.length) return null;
-  var pref = lang==='ja' ? ['ja-JP','ja'] : ['en-GB','en-IE','en-AU','en-US','en'];
+  var pref = lang==='ja' ? ['ja-JP','ja'] : ['en-US','en-CA','en-GB','en-AU','en-IE','en'];   // American first (v4)
   function langRank(v){ var l=(v.lang||'').replace('_','-'); for(var i=0;i<pref.length;i++){ if(l.toLowerCase().indexOf(pref[i].toLowerCase())===0) return i; } return 99; }
   function maleRank(v){ var list=MALE[lang==='ja'?'ja':'en']; for(var i=0;i<list.length;i++) if(list[i].test(v.name)) return i; return -1; }
   var cands=vs.filter(function(v){return langRank(v)<99;});
@@ -275,38 +321,102 @@ function sayText(text, lang, o){
 }
 // Fixed game phrases (English voice path). rate = playback rate (slightly higher pitch = playful); lengthScale compensates so speed stays gentle.
 var PHRASES = {
-  nono: {text:'No, no, no!', lengthScale:1.3, rate:1.13, pitch:1.25},
-  yay:  {text:'You did it!', lengthScale:1.15, rate:1.08, pitch:1.2}
+  nono:    {text:'No, no, no!', lengthScale:1.2, rate:1.06, pitch:1.2},
+  yay:     {text:'You did it!', lengthScale:1.1, rate:1.04, pitch:1.15},
+  goodjob: {text:function(){ var n=childName(); return n ? 'Good job, '+n+'!' : 'Good job!'; }, lengthScale:1.1, rate:1.0, pitch:1.1}
 };
+function childName(){ return String(settings.childName==null?'Theo':settings.childName).trim().slice(0,30); }
+function phraseText(p){ return typeof p.text==='function' ? p.text() : p.text; }
 function warmPhrases(){
   if(neural.state!=='ready') return;
-  Object.keys(PHRASES).forEach(function(k){ var p=PHRASES[k]; NeuralTTS.synth(p.text,{voiceKey:settings.neuralVoice, lengthScale:p.lengthScale}).catch(function(){}); });
+  Object.keys(PHRASES).forEach(function(k){ var p=PHRASES[k]; NeuralTTS.synth(phraseText(p),{voiceKey:settings.neuralVoice, lengthScale:p.lengthScale}).catch(function(){}); });
 }
-function sayPhrase(k){ var p=PHRASES[k]; return sayText(p.text,'en',p); }
+function sayPhrase(k){ var p=PHRASES[k]; return sayText(phraseText(p),'en',p); }
 function say(item, wordOnly){ return item.lang==='en' ? sayText(englishText(item,wordOnly),'en') : sayText(japaneseText(item,wordOnly),'ja'); }
 function hush(){ try{synth&&synth.cancel();}catch(e){} NeuralTTS.stop(); }
 
 /* ======================= SPEECH RECOGNITION ======================= */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 var micBlocked=false;
-function listen(lang, ms){
+var LISTEN_MS=5000;
+// One listening window (~5 s). Continuous + interim results, 5 alternatives; if the recogniser ends early (no-speech,
+// network blip, aborted, Android's short sessions) it is restarted automatically until the window is over.
+// Speech near the end extends the window a little so a slow toddler can finish.
+function listen(lang, ms, item){
   return new Promise(function(resolve){
     if(!SR || micBlocked){ resolve({supported:false,heard:[]}); return; }
-    var r, heard=[], finished=false, gotSpeech=false;
-    try{ r=new SR(); }catch(e){ resolve({supported:false,heard:[]}); return; }
-    r.lang = lang==='ja'?'ja-JP':'en-US';
-    r.interimResults=true; r.maxAlternatives=5; r.continuous=false;
-    function fin(extra){ if(finished) return; finished=true; clearTimeout(t); try{r.abort();}catch(e){} resolve(Object.assign({supported:true,heard:heard,speech:gotSpeech||heard.length>0},extra||{})); }
-    r.onresult=function(ev){
-      for(var i=0;i<ev.results.length;i++){ for(var j=0;j<ev.results[i].length;j++){ var tr=ev.results[i][j].transcript; if(tr&&heard.indexOf(tr)<0) heard.push(tr); } }
-      if(currentMatch(heard)) fin({matched:true});
-    };
-    r.onspeechstart=function(){ gotSpeech=true; };
-    r.onerror=function(ev){ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ micBlocked=true; fin({blocked:true}); } else fin({error:ev.error}); };
-    r.onend=function(){ fin(); };
-    var t=setTimeout(function(){ try{r.stop();}catch(e){} setTimeout(function(){fin();},700); }, ms||6000);
-    try{ r.start(); }catch(e){ fin({error:'start-failed'}); }
+    var heard=[], finished=false, gotSpeech=false, r=null, restarts=0, errors=[], t0=Date.now(), deadline=t0+(ms||LISTEN_MS), maxEnd=deadline+2500, early=null, tick=null;
+    function fin(extra){
+      if(finished) return; finished=true; clearTimeout(tick); clearTimeout(early);
+      try{ r&&r.abort(); }catch(e){}
+      resolve(Object.assign({supported:true,heard:heard,speech:gotSpeech||heard.length>0,restarts:restarts,errors:errors},extra||{}));
+    }
+    function extend(){ deadline=Math.min(maxEnd, Math.max(deadline, Date.now()+1500)); }
+    function start(){
+      if(finished) return;
+      try{ r=new SR(); }catch(e){ fin({supported:false}); return; }
+      r.lang = lang==='ja'?'ja-JP':'en-US';
+      r.interimResults=true; r.maxAlternatives=5; r.continuous=true;
+      r.onresult=function(ev){
+        for(var i=0;i<ev.results.length;i++){ for(var j=0;j<ev.results[i].length;j++){ var tr=ev.results[i][j].transcript; if(tr&&tr.trim()&&heard.indexOf(tr)<0) heard.push(tr); } }
+        if(heard.length){ gotSpeech=true; extend(); }
+        if(item && matches(heard,item)){ fin({matched:true}); return; }
+        // any speech counts (setting): finish shortly after the first words so praise comes quickly
+        if(heard.length && settings.anySpeech && !early) early=setTimeout(function(){ fin({early:true}); }, 700);
+      };
+      r.onspeechstart=function(){ gotSpeech=true; extend(); };
+      r.onerror=function(ev){
+        errors.push(ev.error);
+        if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ micBlocked=true; fin({blocked:true}); }
+        // everything else (no-speech, network, aborted, audio-capture): onend follows and we restart
+      };
+      r.onend=function(){
+        if(finished) return;
+        if(Date.now()<deadline-250 && restarts<8){ restarts++; setTimeout(start, 150); } else fin();
+      };
+      try{ r.start(); }catch(e){ errors.push('start-failed'); if(restarts++<8 && Date.now()<deadline-250) setTimeout(start, 250); else fin({error:'start-failed'}); }
+    }
+    (function loop(){ var left=deadline-Date.now(); if(left<=0){ try{ r&&r.stop(); }catch(e){} tick=setTimeout(function(){ fin(); }, 600); } else tick=setTimeout(loop, Math.min(left,250)); })();
+    start();
   });
+}
+// Voice-activity backup via getUserMedia: a live mic-level meter, and "voice detected" counts as speech when
+// SpeechRecognition returns nothing (or isn't available). Opt-out in Settings; off by default on phones/tablets
+// because some mobile browsers can't share the mic between getUserMedia and SpeechRecognition.
+function vadSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia); }
+function startVAD(){
+  if(!settings.micMeter || !vadSupported()) return Promise.resolve(null);
+  var c=ctx(); if(!c) return Promise.resolve(null);
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}).then(function(stream){
+    var src=c.createMediaStreamSource(stream), an=c.createAnalyser(); an.fftSize=1024; src.connect(an);
+    var buf=new Float32Array(an.fftSize), t0=Date.now(), floor=0.004, n=0, voicedMs=0, last=Date.now();
+    var v={voiced:false, level:0, stop:function(){ clearInterval(iv); try{src.disconnect();}catch(e){} stream.getTracks().forEach(function(t){t.stop();}); meter(-1); }};
+    var iv=setInterval(function(){
+      an.getFloatTimeDomainData(buf); var sum=0; for(var i=0;i<buf.length;i++) sum+=buf[i]*buf[i];
+      var rms=Math.sqrt(sum/buf.length), now=Date.now(), dt=now-last; last=now;
+      if(now-t0<300){ floor=Math.max(floor, rms); n++; }                         // first 0.3 s = room noise
+      else if(rms>Math.max(0.015, floor*3)){ voicedMs+=dt; if(voicedMs>=180) v.voiced=true; }
+      v.level=Math.min(1, rms/Math.max(0.05, floor*8)); meter(v.level);
+    }, 40);
+    return v;
+  }).catch(function(e){ console.warn('mic meter unavailable', e&&e.name); return null; });
+}
+var meterBars=null;
+function meter(level){
+  if(!meterBars) meterBars=Array.prototype.slice.call(document.querySelectorAll('#meter i'));
+  $('meter').classList.toggle('live', level>=0);
+  meterBars.forEach(function(b,k){ var h = level<0 ? '' : Math.round(18+82*Math.max(0, Math.min(1, level*1.6 - k*0.12 + Math.random()*0.15)))+'%'; b.style.height=h; });
+}
+// Listen once: SpeechRecognition (if any) + optional voice-activity backup
+async function hear(item, ms){
+  var vad=await startVAD(), res;
+  if(SR && !micBlocked) res=await listen(item.lang, ms, item);
+  else if(vad){
+    res={supported:true, heard:[], speech:false, vadOnly:true};
+    await new Promise(function(done){ var t0=Date.now(); (function poll(){ if(vad.voiced){ setTimeout(done, 500); return; } if(Date.now()-t0>(ms||LISTEN_MS)) { done(); return; } setTimeout(poll, 100); })(); });
+  } else res={supported:false, heard:[]};
+  if(vad){ if(vad.voiced && !res.speech){ res.speech=true; res.vad=true; } vad.stop(); }
+  return res;
 }
 
 /* ---------- lenient matching ---------- */
@@ -331,6 +441,7 @@ function matches(heard, item){
       if(item.lang==='en'){
         if(tNoSp.length>=2 && (' '+s+' ').indexOf(' '+t+' ')>=0) return true;
         if(tNoSp.length>=3 && sNoSp.indexOf(tNoSp)>=0) return true;
+        if(tNoSp.length>=3 && s.split(' ').some(function(w){ return w.length>=2 && w.slice(0,2)===tNoSp.slice(0,2); })) return true;   // first sound ("ap" for apple)
         var words=s.split(' ').concat([sNoSp]);
         for(var w=0;w<words.length;w++){ var lim=Math.max(1,Math.round(tNoSp.length*0.4)); if(tNoSp.length>=3 && lev(words[w],tNoSp)<=lim) return true; }
       } else {
@@ -338,14 +449,15 @@ function matches(heard, item){
         if(L>=2 && sNoSp.indexOf(tNoSp)>=0) return true;
         if(L>=3 && lev(sNoSp,tNoSp)<=Math.max(1,Math.round(L*0.34))) return true;
         if(L===1 && Array.from(sNoSp).length<=3 && sNoSp.indexOf(tNoSp)>=0) return true;
+        if(L>=2 && Array.from(sNoSp)[0]===Array.from(tNoSp)[0]) return true;   // first kana
       }
     }
   }
   return false;
 }
-function currentMatch(heard){ var it=deck()[pos[curKey()]||0]; return it?matches(heard,it):false; }
 
 /* ======================= CARD LOOP ======================= */
+function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
 var busy=false, attempts=0, advanceTimer=null, runId=0;
 function setStatus(kind,html){ el.status.className='status '+(kind||''); el.statusText.innerHTML=html||'&nbsp;'; }
 function note(t){ el.note.textContent=t||''; }
@@ -368,6 +480,8 @@ function render(anim){
   var i=pos[key]=Math.min(Math.max(0,pos[key]||0),d.length-1);
   var it=d[i];
   el.pic.innerHTML=pictureHTML(it);
+  el.pic.classList.toggle('many', !!(it.count && it.count>10));
+  el.letter.classList.toggle('num2', !!(it.count && it.count>9));
   el.letter.textContent=it.letter||'';
   el.letter.style.display = (it.letter && it.letter!==it.word) ? '' : 'none';
   el.word.textContent=it.word;
@@ -386,7 +500,9 @@ function go(delta){
   var key=curKey(); pos[key]=((pos[key]||0)+delta+d.length)%d.length;
   render(true);
 }
-function stopAll(){ busy=false; el.play.classList.remove('busy'); hush(); clearTimeout(advanceTimer); }
+function stopAll(){ busy=false; el.play.classList.remove('busy'); setListening(false); hush(); clearTimeout(advanceTimer); }
+function setListening(on){ el.play.classList.toggle('listening', !!on); document.body.classList.toggle('is-listening', !!on); if(!on) meter(-1); }
+function overlayOpen(){ return $('modal').classList.contains('open') || $('matchView').classList.contains('open') || $('doneView').classList.contains('show'); }
 function starPts(cx,cy,R,r,k){ var s=''; for(var i=0;i<k*2;i++){ var rad=i%2?r:R, a=-Math.PI/2+i*Math.PI/k; s+=(i?'L':'M')+(cx+rad*Math.cos(a)).toFixed(1)+' '+(cy+rad*Math.sin(a)).toFixed(1); } return s+'Z'; }
 var CONF_SHAPES = [
   function(col){ return '<svg viewBox="0 0 24 24"><path d="'+starPts(12,12.8,11,4.8,5)+'" fill="'+col+'" stroke="#3b2b5a" stroke-width="1.6" stroke-linejoin="round"/></svg>'; },
@@ -413,37 +529,62 @@ function celebrate(){
   el.card.classList.remove('win'); void el.card.offsetWidth; el.card.classList.add('win');
   el.bigstar.classList.remove('go'); void el.bigstar.offsetWidth; el.bigstar.classList.add('go');
   confetti(46);
-  advanceTimer=setTimeout(function(){ if(my===runId) go(1); }, 1600);
+  var d=deck(), last=(pos[curKey()]||0)>=d.length-1;
+  if(last && d.length>1){ advanceTimer=setTimeout(function(){ if(my===runId) deckDone(); }, 1100); return; }
+  // auto-advance ~1.2 s after the praise, then say the next word (and listen) automatically
+  advanceTimer=setTimeout(function(){
+    if(my!==runId) return;
+    go(1);
+    if(!settings.autoNext) return;
+    var r=runId; advanceTimer=setTimeout(function(){ if(r===runId && !overlayOpen()) playRound(); }, 450);
+  }, 1200);
 }
+// Finished the whole deck (ABC, あいう, 1–20 in either language, My Words): applause, confetti, "Good Job Theo!"
+function deckDone(){
+  var my=++runId; stopAll();
+  var ja=isJa(), n=childName();
+  $('dText').textContent = n ? 'Good Job '+n+'!' : 'Good Job!';
+  $('dSub').textContent = ja ? 'よくできました' : '';
+  var v=$('doneView'); v.classList.remove('show'); void v.offsetWidth; v.classList.add('show');
+  applause(); confetti(90, true);
+  setStatus('ok', T('All done! ','ぜんぶできた！ ')+icon('star'));
+  advanceTimer=setTimeout(function(){ if(my===runId) sayPhrase('goodjob'); }, 700);
+}
+function closeDone(){ $('doneView').classList.remove('show'); }
 async function playRound(){
   if(busy) return;
   var d=deck(); if(!d.length) return;
   ctx();
-  var my=++runId; busy=true; el.play.classList.add('busy');
+  var my=++runId; busy=true; el.play.classList.add('busy'); note('');
   var it=d[pos[curKey()]];
-  setStatus('speaking', T('Listen ','きいてね ')+icon('ear'));
-  await say(it);
-  if(my!==runId) return;
-  if(!settings.listen){ busy=false; el.play.classList.remove('busy'); setStatus('', T('Now you say it!','いってみよう！')); return; }
-  if(!SR || micBlocked){
-    busy=false; el.play.classList.remove('busy');
-    setStatus('', T('Your turn!','いってみよう！'));
-    note(!SR ? 'Speech recognition isn’t available in this browser — say it together, then tap “Good job” or “Next”. (Chrome/Edge support listening.)'
-             : 'Microphone is blocked — allow mic access for this site, or use “Good job” / “Next”.');
-    return;
+  for(var round=0; round<2; round++){
+    setStatus('speaking', T('Listen ','きいてね ')+icon('ear'));
+    await say(it);
+    if(my!==runId) return;
+    if(!settings.listen){ busy=false; el.play.classList.remove('busy'); setStatus('', T('Now you say it!','いってみよう！')); return; }
+    if((!SR || micBlocked) && !(settings.micMeter && vadSupported())){
+      busy=false; el.play.classList.remove('busy');
+      setStatus('', T('Your turn!','いってみよう！'));
+      note(!SR ? 'Speech recognition isn’t available in this browser — say it together, then tap “Good job”. (Chrome/Edge support listening.)'
+               : 'Microphone is blocked — allow mic access for this site, or use “Good job” / “Next”.');
+      return;
+    }
+    await wait(200);
+    if(my!==runId) return;
+    setStatus('listening', T('Listening… say it!','きいてるよ… いってみて！'));
+    setListening(true);
+    var res=await hear(it, LISTEN_MS);
+    setListening(false);
+    if(my!==runId) return;
+    if(res.blocked || !res.supported){ busy=false; el.play.classList.remove('busy'); setStatus('', T('Your turn!','いってみよう！')); note('Microphone is blocked or unavailable — allow mic access, or use “Good job” / “Next”.'); return; }
+    attempts++;
+    var ok = res.matched || matches(res.heard||[], it) || (res.speech && (settings.anySpeech || attempts>=2));
+    if(window.TW_DEBUG) console.log('heard', res.heard, 'speech', res.speech, 'vad', !!res.vad, 'restarts', res.restarts, 'errors', res.errors, 'attempt', attempts, 'ok', ok);
+    TW.lastHear=res;
+    if(ok){ busy=false; el.play.classList.remove('busy'); celebrate(); return; }
+    if(round===0){ setStatus('', T('Let’s try again!','もういっかい！')); await wait(700); if(my!==runId) return; }   // one automatic retry
   }
-  await new Promise(function(r){setTimeout(r,250);});
-  if(my!==runId) return;
-  setStatus('listening', T('Your turn','いってみて'));
-  var res=await listen(it.lang, 6000);
-  if(my!==runId) return;
   busy=false; el.play.classList.remove('busy');
-  if(res.blocked || !res.supported){ setStatus('', T('Your turn!','いってみよう！')); note('Microphone is blocked or unavailable — allow mic access, or use “Good job” / “Next”.'); return; }
-  attempts++;
-  var ok = res.matched || matches(res.heard||[], it);
-  if(!ok && attempts>=2 && (res.speech || (res.heard&&res.heard.length))) ok=true;   // generous with toddlers
-  if(window.TW_DEBUG) console.log('heard', res.heard, 'attempt', attempts, 'ok', ok);
-  if(ok){ celebrate(); return; }
   setStatus('', T('Again! ','もういっかい！ ')+icon('again'));
 }
 
@@ -477,7 +618,9 @@ function letterPool(){
   return out.length>=2 ? out : LETTERS_AZ.split('');
 }
 function letterItems(){ return letterPool().map(function(ch){ return {lang:'en',letter:ch,word:ch,glyph:true,alts:[],sub:'',speak:ch+'.'}; }); }
-function matchItems(id){ if(id==='letters') return letterItems(); if(id==='animals') return ANIMALS; return deckById(id); }
+function matchItems(id){ if(id==='letters') return letterItems(); if(id==='animals') return ANIMALS;
+  if(id==='numen'||id==='numja') return deckById(id).filter(function(it){ return it.count<=10; });   // 11–20 are too busy for small cards
+  return deckById(id); }
 function modeOf(id){ return (id==='letters'||id==='animals') ? id : 'pics'; }
 function renderModes(active){
   var box=$('mModes'); box.innerHTML='';
@@ -565,7 +708,6 @@ function sparkleAt(elm){
     document.body.appendChild(s); setTimeout(function(nd){return function(){nd.remove();};}(s), 1000);
   }
 }
-function wait(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
 function flip(i){
   var c=M.cards[i];
   if(!c || M.lock || c.up || c.done) return;
@@ -620,6 +762,8 @@ el.play.addEventListener('click', playRound);
 $('nextBtn').addEventListener('click', function(){ go(1); });
 $('prevBtn').addEventListener('click', function(){ go(-1); });
 $('goodBtn').addEventListener('click', function(){ if(deck().length){ ctx(); celebrate(); } });
+$('dAgain').addEventListener('click', function(){ ctx(); closeDone(); runId++; stopAll(); pos[curKey()]=0; render(true); var r=runId; setTimeout(function(){ if(r===runId && !overlayOpen()) playRound(); }, 450); });
+$('dClose').addEventListener('click', function(){ closeDone(); runId++; stopAll(); setStatus('', T('Tap ','おして ')+icon('play')); });
 document.querySelectorAll('.tab').forEach(function(b){ b.addEventListener('click', function(){
   if(deckId===b.dataset.deck) return; runId++; stopAll(); deckId=b.dataset.deck; note(''); render(true);
 });});
@@ -630,7 +774,7 @@ document.addEventListener('dblclick', function(e){ e.preventDefault(); }, {passi
 document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, {passive:false});
 var lastTouch=0; document.addEventListener('touchend', function(e){ var t=Date.now(); if(t-lastTouch<300 && !e.target.closest('input,select,textarea')) e.preventDefault(); lastTouch=t; }, {passive:false});
 document.addEventListener('contextmenu', function(e){ if(!e.target.closest('.modal')) e.preventDefault(); });
-document.addEventListener('keydown', function(e){ if($('modal').classList.contains('open')||$('matchView').classList.contains('open')) return;
+document.addEventListener('keydown', function(e){ if(overlayOpen()) return;
   if(e.key===' '||e.key==='Enter'){ e.preventDefault(); playRound(); } else if(e.key==='ArrowRight') go(1); else if(e.key==='ArrowLeft') go(-1); });
 
 /* ---------- parent gate: press & hold 3 s ---------- */
@@ -703,11 +847,16 @@ $('sPairs').value=String(settings.pairs); $('sMatchMode').value=settings.matchMo
 $('sVoiceMode').addEventListener('change', function(){ settings.voiceMode=this.value; saveSettings(); loadNeural(); renderVoiceStatus(); });
 sNeural.addEventListener('change', function(){ settings.neuralVoice=this.value; saveSettings(); neural.state='idle'; loadNeural(); });
 $('sListen').addEventListener('change', function(){ settings.listen=this.checked; saveSettings(); });
+$('sChildName').value=childName(); $('sAutoNext').checked=settings.autoNext!==false; $('sAnySpeech').checked=!!settings.anySpeech; $('sMicMeter').checked=!!settings.micMeter;
+$('sChildName').addEventListener('change', function(){ settings.childName=this.value.trim().slice(0,30); saveSettings(); warmPhrases(); });
+$('sAutoNext').addEventListener('change', function(){ settings.autoNext=this.checked; saveSettings(); });
+$('sAnySpeech').addEventListener('change', function(){ settings.anySpeech=this.checked; saveSettings(); });
+$('sMicMeter').addEventListener('change', function(){ settings.micMeter=this.checked; saveSettings(); });
 $('sSayLetter').addEventListener('change', function(){ settings.sayLetter=this.checked; saveSettings(); });
 $('sPairs').addEventListener('change', function(){ settings.pairs=+this.value; saveSettings(); });
 $('sMatchMode').addEventListener('change', function(){ settings.matchMode=this.value; saveSettings(); });
 $('sLetterSet').addEventListener('change', function(){ settings.letterSet=this.value.trim(); saveSettings(); });
-$('testEn').addEventListener('click', function(){ ctx(); sayText('Good morning. Shall we learn some letters?','en'); });
+$('testEn').addEventListener('click', function(){ ctx(); sayText('Hi '+(childName()||'there')+'! Shall we learn some letters?','en'); });
 $('testJa').addEventListener('click', function(){ ctx(); sayText('おはよう。 いっしょに あいうえおを いおう。','ja'); });
 var rvT=0; function renderVoiceStatusThrottled(){ var t=Date.now(); if(t-rvT>250){ rvT=t; renderVoiceStatus(); } }
 function renderVoiceStatus(){
@@ -732,5 +881,6 @@ if(!SR) note('Listening needs Chrome or Edge. You can still play words and use �
 loadNeural();
 window.TW = {matches:matches, deck:deck, deckById:deckById, EN:EN, JA:JA, NUM_EN:NUM_EN, NUM_JA:NUM_JA, settings:settings, neural:neural, chosen:chosen,
   openParent:openParent, pickVoice:pickVoice, go:go, celebrate:celebrate, openMatch:openMatch, startMatch:startMatch, showPicker:showPicker, M:M, flip:flip, pictureHTML:pictureHTML,
-  ANIMALS:ANIMALS, letterPool:letterPool, matchItems:matchItems, PHRASES:PHRASES, sayPhrase:sayPhrase, swoosh:swoosh, fanfare:fanfare, win:win, MATCH_MODES:MATCH_MODES};
+  ANIMALS:ANIMALS, letterPool:letterPool, matchItems:matchItems, PHRASES:PHRASES, sayPhrase:sayPhrase, swoosh:swoosh, fanfare:fanfare, win:win, MATCH_MODES:MATCH_MODES,
+  deckDone:deckDone, playRound:playRound, applause:applause, hear:hear, listen:listen, pos:pos, render:render, countSVG:countSVG, childName:childName, lastHear:null};
 })();

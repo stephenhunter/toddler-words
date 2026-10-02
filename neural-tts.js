@@ -7,7 +7,7 @@
  * Must be served over http(s)/localhost; file:// blocks fetch() of the model.
  *
  * API (window.NeuralTTS):
- *   NeuralTTS.VOICES                         -> list of male en_GB voices shipped
+ *   NeuralTTS.VOICES                         -> list of male voices shipped (first = default)
  *   await NeuralTTS.load(voiceKey, onProgress) -> loads runtime + model (idempotent)
  *   NeuralTTS.isReady(voiceKey)
  *   await NeuralTTS.synth(text, {lengthScale}) -> {pcm: Float32Array, sampleRate}
@@ -21,9 +21,10 @@
   var VENDOR = BASE + 'vendor/';
   var VOICE_DIR = BASE + 'voices/';
 
-  // Male British voices only (user requirement). Female en_GB Piper voices are deliberately not shipped.
+  // Male voices only (user requirement). Default: American male tenor (Bryce, public domain). Female Piper voices are deliberately not shipped.
   var VOICES = [
-    { key: 'en_GB-northern_english_male-medium', label: 'Northern English Male (British, neural) — default', speaker: 0 }
+    { key: 'en_US-bryce-medium', label: 'Bryce (American male tenor, neural) — default', speaker: 0 },
+    { key: 'en_US-norman-medium', label: 'Norman (American male, deeper, neural)', speaker: 0 }
   ];
 
   var ortPromise = null, phonPromise = null;

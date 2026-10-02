@@ -200,6 +200,35 @@
   .preview img{max-height:80px;border-radius:10px}
   .vstat{font-size:13px;background:#f6f3fa;border-radius:10px;padding:8px 10px;margin-top:8px;line-height:1.5}
   .hidden{display:none!important}
+  /* v4: numbers 11–20 (ten-frames) get a taller picture */
+  .pic.many{height:clamp(190px,min(64vmin,36vh),340px)}
+  /* v4: listening indicator */
+  .play{position:relative}
+  .play .pmic{display:none;width:46%;height:46%}
+  .play .pmic svg{width:100%;height:100%;margin:0}
+  .play.listening{background:radial-gradient(circle at 35% 30%,#c4f7d4 0,#2ec27e 45%,#1f9e63 100%);box-shadow:0 10px 0 #17784a,0 18px 30px rgba(23,120,74,.35);animation:none;filter:none}
+  .play.listening > span:first-child{display:none!important}
+  .play.listening .pmic{display:block}
+  .play.listening::before,.play.listening::after{content:'';position:absolute;inset:-8px;border-radius:50%;border:7px solid rgba(46,194,126,.6);animation:ring 1.6s ease-out infinite;pointer-events:none}
+  .play.listening::after{animation-delay:.8s}
+  @keyframes ring{0%{transform:scale(.96);opacity:.95}100%{transform:scale(1.5);opacity:0}}
+  .status.listening{color:#17784a}
+  .meter{display:none;height:1.25em;align-items:flex-end;gap:4px}
+  .status.listening .meter{display:inline-flex}
+  .meter i{display:block;width:7px;height:30%;background:#2ec27e;border-radius:4px;transition:height .08s}
+  .meter:not(.live) i{animation:bar 1s ease-in-out infinite}
+  .meter i:nth-child(2){animation-delay:.15s}.meter i:nth-child(3){animation-delay:.3s}.meter i:nth-child(4){animation-delay:.45s}.meter i:nth-child(5){animation-delay:.6s}
+  @keyframes bar{0%,100%{height:25%}50%{height:90%}}
+  /* v4: end-of-deck celebration */
+  .doneView{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;background:rgba(255,246,214,.95);padding:20px}
+  .doneView.show{display:flex}
+  .doneView .dstar{width:min(46vmin,280px);height:min(46vmin,280px);animation:winstar 1.6s ease-in-out infinite}
+  .doneView .dstar svg{width:100%;height:100%}
+  .doneView h2{margin:0;font-size:clamp(46px,13vw,92px);line-height:1.05;color:#ff4f8b;text-shadow:0 5px 0 #ffd84d,0 10px 0 rgba(59,43,90,.14)}
+  .doneView.show h2{animation:yayIn .9s cubic-bezier(.3,1.6,.5,1) both,yayBob 1.6s .9s ease-in-out infinite}
+  .doneView .dsub{font-size:clamp(28px,8vw,44px);font-weight:900;color:#7b4fd6}
+  .doneView .dsub:empty{display:none}
+  .doneView.show .row{animation:fadeUp .5s 1.2s both}
   @media (max-height:640px){ .card{padding:8px 14px 10px} }
   @media (orientation:landscape) and (max-height:520px){ main{flex-direction:row;flex-wrap:wrap} .card{width:min(60vw,520px)} }
 </style>
@@ -228,8 +257,8 @@
     <div class="row"><div class="letter" id="letter">A</div><div class="word" id="word">Apple</div></div>
     <div class="sub" id="sub"></div>
   </section>
-  <div class="status" id="status"><span class="mic" data-icon="mic"></span><span id="statusText">&nbsp;</span></div>
-  <button class="play" id="play" aria-label="Play"><span data-icon="play" style="display:contents"></span></button>
+  <div class="status" id="status"><span class="mic" data-icon="mic"></span><span id="statusText">&nbsp;</span><span class="meter" id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
+  <button class="play" id="play" aria-label="Play"><span data-icon="play" style="display:contents"></span><span class="pmic" data-icon="mic"></span></button>
 </main>
 
 <button class="matchBtn" id="matchBtn" aria-label="Match game"><span class="i" data-icon="cards"></span>Match</button>
@@ -246,6 +275,16 @@
 </footer>
 
 <div class="celebrate" id="celebrate"><div class="bigstar" id="bigstar"></div></div>
+
+<div class="doneView" id="doneView" role="dialog" aria-modal="true">
+  <div class="dstar" id="dStar"></div>
+  <h2 id="dText">Good Job Theo!</h2>
+  <div class="dsub" id="dSub"></div>
+  <div class="row">
+    <button class="bigbtn" id="dAgain"><span class="i" data-icon="again"></span><span>Play again</span></button>
+    <button class="bigbtn alt" id="dClose"><span class="i" data-icon="check"></span><span>Done</span></button>
+  </div>
+</div>
 
 <div class="matchView" id="matchView" aria-modal="true" role="dialog">
   <div class="mhead">
@@ -305,7 +344,7 @@
     <div id="pane-voice" class="hidden">
       <h3>English voice</h3>
       <label for="sVoiceMode">Voice for English words</label>
-      <select id="sVoiceMode"><option value="neural">Jarvis-style (neural British male, offline)</option><option value="device">Device voice (Web Speech)</option></select>
+      <select id="sVoiceMode"><option value="neural">Neural American male tenor (offline)</option><option value="device">Device voice (Web Speech)</option></select>
       <label for="sNeural">Neural voice model</label>
       <select id="sNeural"></select>
       <div class="vstat" id="neuralStat">Neural voice: not loaded</div>
@@ -314,6 +353,11 @@
       <button class="btn sec" type="button" id="testJa"><span class="i" data-icon="speaker"></span>Test 日本語</button>
       <h3>Listening</h3>
       <label><input type="checkbox" id="sListen" checked> Listen for my child to repeat the word (microphone)</label>
+      <label><input type="checkbox" id="sAnySpeech" checked> Any word or sound my child says counts (most forgiving)</label>
+      <label><input type="checkbox" id="sMicMeter"> Mic-level backup: a detected voice counts when recognition hears nothing (may not work on some phones)</label>
+      <label><input type="checkbox" id="sAutoNext" checked> After a success, go to the next card automatically and say it</label>
+      <label for="sChildName">Child's name (for “Good Job …!” at the end of a deck)</label>
+      <input type="text" id="sChildName" maxlength="30" placeholder="Theo">
       <label><input type="checkbox" id="sSayLetter" checked> Say the letter/kana first (“A… Apple”, “あ… あり”)</label>
       <h3>Match game</h3>
       <div class="frow">
@@ -322,7 +366,7 @@
       </div>
       <label for="sLetterSet">Letters game: letters to use (blank = random from A–Z each round)</label>
       <input type="text" id="sLetterSet" maxlength="60" placeholder="e.g. ABC or S, A, M (blank = A–Z)">
-      <p class="muted">The English voice is a male British neural Piper voice (not a clone of any actor). Japanese uses your device's ja-JP voice, preferring a male voice if one is installed. Speech recognition is generous: after 2 tries any sound counts as a success.</p>
+      <p class="muted">The English voice is an American male neural Piper voice (Bryce, public domain; not a clone of any actor). If it can't load, the device voice is used, preferring an American male voice. Japanese uses your device's ja-JP voice, preferring a male voice if one is installed. Listening is generous: about 5 seconds per try, restarts automatically, partial words and first sounds count, and one automatic retry if nothing is heard.</p>
     </div>
   </div>
 </div>
