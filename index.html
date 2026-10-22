@@ -84,7 +84,7 @@
     box-shadow:0 6px 0 #7b4fd6,0 10px 20px rgba(123,79,214,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:14px;font-weight:900}
   .matchBtn .i{width:40px;height:40px}
   .matchBtn:active{transform:translateY(5px);box-shadow:0 1px 0 #7b4fd6}
-  .pbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:4px 96px 6px 8px}
+  .pbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:4px 8px 6px 8px}
   .pbtn{border:0;border-radius:14px;padding:9px 14px;font-size:15px;background:rgba(255,255,255,.75);color:var(--soft);font-weight:700;box-shadow:0 2px 0 rgba(0,0,0,.08);font-family:system-ui,sans-serif;display:inline-flex;align-items:center;gap:4px}
   .pbtn.good{color:#1f8f5b}
   .pbtn:active{transform:translateY(2px)}
@@ -93,7 +93,6 @@
   .prog{width:min(92vw,560px);height:12px;border-radius:8px;background:rgba(255,255,255,.8);margin:0 auto;overflow:hidden}
   .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd84d,#ff7a59,#ff4f8b);border-radius:8px;transition:width .3s}
   .count{font-size:14px;color:var(--soft);margin-top:4px;font-family:system-ui,sans-serif}
-  @media (max-width:699px){ .note{padding-right:96px} }
   @media (min-width:700px){ .pbar{padding-right:8px} }
   .celebrate{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
   .bigstar{position:absolute;left:50%;top:42%;width:min(50vmin,320px);height:min(50vmin,320px);transform:translate(-50%,-50%) scale(0);opacity:0}
@@ -231,6 +230,83 @@
   .doneView.show .row{animation:fadeUp .5s 1.2s both}
   @media (max-height:640px){ .card{padding:8px 14px 10px} }
   @media (orientation:landscape) and (max-height:520px){ main{flex-direction:row;flex-wrap:wrap} .card{width:min(60vw,520px)} }
+  /* ===== v5: top bar holds Match + Write ===== */
+  :root{--tab-write:#ff7a59}
+  .tab[data-view=match].on{background:var(--match);color:#fff}
+  .tab[data-view=write].on{background:var(--tab-write);color:#fff}
+  .tabs{overflow-x:auto;scrollbar-width:none;padding:2px 2px 6px;margin-bottom:-4px}
+  .tabs::-webkit-scrollbar{display:none}
+  @media (max-width:900px){ .tab .long{display:none} .tab .short{display:inline} }
+  @media (max-width:560px){
+    header{gap:5px;padding:8px 6px 4px;padding-top:max(8px,env(safe-area-inset-top))}
+    .tabs{gap:4px}
+    .tab{flex:1 0 auto;min-width:46px;flex-direction:column;gap:2px;padding:6px 3px 5px;border-radius:14px;font-size:12.5px;line-height:1.1;overflow:visible}
+    .tab .i{width:24px;height:24px}
+    .gear{width:42px;height:42px;padding:8px}
+  }
+  /* ===== v5: the whole card is the button ===== */
+  .card{cursor:pointer;-webkit-tap-highlight-color:transparent;width:min(94vw,640px);transition:box-shadow .25s;outline:none}
+  .pic{height:clamp(150px,min(78vw,38vh),400px)}
+  .pic.many{height:clamp(210px,min(84vw,46vh),470px)}
+  .card.tapped{animation:tapb .38s ease}
+  @keyframes tapb{0%{transform:scale(1)}35%{transform:scale(.955)}70%{transform:scale(1.015)}100%{transform:scale(1)}}
+  .cbadge{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;background:linear-gradient(145deg,var(--play1),var(--play2));color:#fff;padding:11px;box-shadow:0 3px 0 #c2366a;pointer-events:none;z-index:2}
+  .cbadge .i{width:100%;height:100%;display:block}
+  .cbadge .bm{display:none}
+  .card.busy .cbadge{animation:pulse 1s infinite}
+  .card.listening{box-shadow:0 0 0 6px #2ec27e,0 0 30px 10px rgba(46,194,126,.5),0 10px 0 rgba(59,43,90,.1);animation:cglow 1.4s ease-in-out infinite}
+  @keyframes cglow{50%{box-shadow:0 0 0 9px #46d690,0 0 44px 16px rgba(46,194,126,.6),0 10px 0 rgba(59,43,90,.1)}}
+  .card.listening .cbadge{background:#2ec27e;box-shadow:0 3px 0 #17784a}
+  .card.listening .cbadge .bs{display:none}
+  .card.listening .cbadge .bm{display:block}
+  .matchView{inset:var(--hdrH,64px) 0 0 0}
+  .mhead{padding-top:6px}
+  /* ===== v5: Write (tracing) ===== */
+  .writeView{position:fixed;left:0;right:0;bottom:0;top:var(--hdrH,64px);z-index:30;display:none;flex-direction:column;background:radial-gradient(circle at 80% 0%,#fff 0,transparent 45%),linear-gradient(160deg,#fff1e3,#ffe3f1)}
+  .writeView.open{display:flex}
+  .whead{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 10px 2px;flex-wrap:wrap}
+  .wscripts{display:flex;gap:6px}
+  .wscripts button{border:0;border-radius:16px;padding:8px 16px;font-size:18px;font-weight:900;background:rgba(255,255,255,.85);box-shadow:0 3px 0 rgba(0,0,0,.08)}
+  .wscripts button.on{background:var(--tab-write);color:#fff}
+  .wcount{font:700 14px system-ui,sans-serif;color:var(--soft)}
+  .wbody{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:4px 10px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom));gap:10px}
+  .wstage{flex:1;min-height:0;align-self:stretch;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;touch-action:none}
+  #wSvg{background:#fff;border-radius:28px;box-shadow:0 8px 0 rgba(59,43,90,.10),0 16px 34px rgba(59,43,90,.12);touch-action:none;display:block;cursor:crosshair;-webkit-user-select:none;user-select:none}
+  .wbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .wbtn{border:0;border-radius:16px;padding:10px 14px;font-size:17px;font-weight:800;background:#fff;box-shadow:0 4px 0 rgba(0,0,0,.1);display:inline-flex;align-items:center;gap:6px}
+  .wbtn:active{transform:translateY(3px)}
+  .wbtn .i{width:1.2em;height:1.2em}
+  .wbtn.demo{color:#7b4fd6}
+  .wbtn.clear{color:#c2366a}
+  @media (orientation:landscape) and (max-height:560px){ .wbody{flex-direction:row} .wbar{flex-direction:column;flex-wrap:nowrap} .whead{padding-top:2px} }
+  .wl-solid{stroke:#c9bfe0;stroke-width:.8;fill:none}
+  .wl-base{stroke:#a99bd0;stroke-width:1.1;fill:none}
+  .wl-dash{stroke:#d8cfea;stroke-width:.7;stroke-dasharray:3 2.5;fill:none}
+  .wl-dash.faint{stroke:#ebe5f5}
+  .wl-box{fill:none;stroke:#d8cfea;stroke-width:.8}
+  .w-ghostpath{fill:none;stroke:#ece5f7;stroke-width:10;stroke-linecap:round;stroke-linejoin:round}
+  .w-mark{opacity:.5;transition:opacity .3s}
+  .w-mark.cur{opacity:1}
+  .writeView.demoing .w-mark{opacity:.9}
+  .w-mark.done,.writeView .w-mark.done{opacity:0}
+  .w-arrowline{fill:none;stroke-width:1.3;stroke-dasharray:1.6 1.9;stroke-linecap:round;opacity:.85}
+  .w-start{stroke:#fff;stroke-width:1}
+  .w-badge{fill:#fff;stroke-width:1.2}
+  .w-num{font:900 6.4px system-ui,sans-serif;text-anchor:middle}
+  .w-start{transform-box:fill-box;transform-origin:center}
+  .w-mark.cur .w-start{animation:wdot 1.2s ease-in-out infinite}
+  .w-mark.cur.pulse .w-start{animation:wpulse .5s ease 3}
+  @keyframes wdot{50%{transform:scale(1.45)}}
+  @keyframes wpulse{50%{transform:scale(2.1)}}
+  .w-ink{fill:none;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+  .w-demopath{fill:none;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+  .w-pen{fill:#3b2b5a;stroke:#fff;stroke-width:1.4}
+  .w-livepath{fill:none;stroke-width:6.5;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+  .w-livepath.fade,.w-demopath.fade,.w-pen.fade{opacity:0;transition:opacity .6s ease}
+  #wSvg.wdone{animation:wiggle .6s ease}
+  .wgreat{position:absolute;left:50%;top:10%;transform:translate(-50%,0);font-size:clamp(40px,12vw,76px);font-weight:900;color:#ff4f8b;text-shadow:0 4px 0 #ffd84d,0 8px 0 rgba(59,43,90,.14);pointer-events:none;opacity:0;white-space:nowrap}
+  .wgreat.show{animation:wgIn .8s cubic-bezier(.3,1.6,.5,1) both}
+  @keyframes wgIn{0%{transform:translate(-50%,0) scale(.3);opacity:0}100%{transform:translate(-50%,0) scale(1);opacity:1}}
 </style>
 </head>
 <body class="deck-en">
@@ -240,6 +316,8 @@
     <button class="tab" data-deck="ja" role="tab"><span class="i" data-icon="flagjp"></span><span class="long">あいうえお</span><span class="short">あいう</span></button>
     <button class="tab" data-deck="num" role="tab"><span class="i" data-icon="num"></span><span>123</span></button>
     <button class="tab" data-deck="my" role="tab"><span class="i" data-icon="star"></span><span class="long">My Words</span><span class="short">Mine</span></button>
+    <button class="tab" data-view="match" role="tab"><span class="i" data-icon="cards"></span><span>Match</span></button>
+    <button class="tab" data-view="write" role="tab"><span class="i" data-icon="pen"></span><span>Write</span></button>
   </nav>
   <button class="gear" id="gear" aria-label="Parent area (press and hold 3 seconds)">
     <svg class="ring" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/></svg><span class="i" data-icon="gear"></span>
@@ -252,16 +330,14 @@
 <div class="gate-hint" id="gateHint">Grown-ups: press &amp; hold the gear for 3 seconds</div>
 
 <main>
-  <section class="card" id="card" aria-live="polite">
+  <section class="card" id="card" aria-live="polite" role="button" tabindex="0" aria-label="Touch to hear it">
+    <span class="cbadge" aria-hidden="true"><span class="i bs" data-icon="speaker"></span><span class="i bm" data-icon="mic"></span></span>
     <div class="pic" id="pic"></div>
     <div class="row"><div class="letter" id="letter">A</div><div class="word" id="word">Apple</div></div>
     <div class="sub" id="sub"></div>
   </section>
   <div class="status" id="status"><span class="mic" data-icon="mic"></span><span id="statusText">&nbsp;</span><span class="meter" id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
-  <button class="play" id="play" aria-label="Play"><span data-icon="play" style="display:contents"></span><span class="pmic" data-icon="mic"></span></button>
 </main>
-
-<button class="matchBtn" id="matchBtn" aria-label="Match game"><span class="i" data-icon="cards"></span>Match</button>
 
 <div class="pbar" id="pbar">
   <button class="pbtn" id="prevBtn" aria-label="Previous"><span class="i" data-icon="prev"></span>Prev</button>
@@ -283,6 +359,22 @@
   <div class="row">
     <button class="bigbtn" id="dAgain"><span class="i" data-icon="again"></span><span>Play again</span></button>
     <button class="bigbtn alt" id="dClose"><span class="i" data-icon="check"></span><span>Done</span></button>
+  </div>
+</div>
+
+<div class="writeView" id="writeView" role="dialog" aria-label="Write">
+  <div class="whead">
+    <div class="wscripts" id="wScripts"><button data-ws="upper">ABC</button><button data-ws="lower">abc</button><button data-ws="kana">あいう</button></div>
+    <span class="wcount" id="wCount"></span>
+  </div>
+  <div class="wbody">
+    <div class="wstage" id="wStage"><svg id="wSvg" viewBox="0 0 109 109" aria-label="Tracing board"></svg><div class="wgreat" id="wGreat">Great job!</div></div>
+    <div class="wbar">
+      <button class="wbtn" id="wPrev" aria-label="Previous"><span class="i" data-icon="prev"></span>Prev</button>
+      <button class="wbtn demo" id="wDemo"><span class="i" data-icon="again"></span>Show me</button>
+      <button class="wbtn clear" id="wClear"><span class="i" data-icon="eraser"></span>Clear</button>
+      <button class="wbtn" id="wNext" aria-label="Next">Next<span class="i" data-icon="next"></span></button>
+    </div>
   </div>
 </div>
 
@@ -373,6 +465,8 @@
 
 <script src="art.js"></script>
 <script src="neural-tts.js"></script>
+<script src="latin-strokes.js"></script>
+<script src="kana-strokes.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
