@@ -257,14 +257,14 @@ function pickVoice(lang, list){
   var cands=vs.filter(function(v){return langRank(v)<99;});
   if(!cands.length) return null;
   cands.sort(function(a,b){
-    function g(v){ return maleRank(v)>=0 ? 0 : (FEMALE.test(v.name)?2:1); }
+    function g(v){ if(lang==='ja') return FEMALE.test(v.name) ? 0 : (maleRank(v)>=0?2:1); return maleRank(v)>=0 ? 0 : (FEMALE.test(v.name)?2:1); }
     var d=g(a)-g(b); if(d) return d;
     d=langRank(a)-langRank(b); if(d) return d;
     var ma=maleRank(a), mb=maleRank(b); if(ma!==mb) return (ma<0?99:ma)-(mb<0?99:mb);
     var na=/natural|neural|premium|enhanced/i.test(a.name)?0:1, nb=/natural|neural|premium|enhanced/i.test(b.name)?0:1; return na-nb;
   });
   var v=cands[0];
-  v._gender = maleRank(v)>=0?'male':(FEMALE.test(v.name)?'female':'unknown');
+  v._gender = (lang==='ja'&&FEMALE.test(v.name))?'female':maleRank(v)>=0?'male':(FEMALE.test(v.name)?'female':'unknown');
   return v;
 }
 var chosen={en:null,ja:null};
@@ -310,10 +310,36 @@ function warm(items, wordOnly){
   if(neural.state!=='ready') return;
   items.forEach(function(it){ if(it && it.lang==='en') NeuralTTS.synth(englishText(it,wordOnly),{voiceKey:settings.neuralVoice, lengthScale:LS_SCALE}).catch(function(){}); });
 }
-function prefetch(){ var d=deck(), i=pos[curKey()]||0; if(d.length) warm([d[i], d[(i+1)%d.length]]); }
+function prefetch(){ var d=deck(), i=pos[curKey()]||0; if(d.length){ preloadClips([d[i], d[(i+1)%d.length]]); warm([d[i], d[(i+1)%d.length]]); } }
+/* ---- v6: pre-rendered natural voice clips (Kokoro-82M, Apache-2.0): EN am_michael, JA jf_alpha ---- */
+var CLIPBUF={}, clipSrc=null, clipDone=null;
+function clipFile(text, lang){ var m=window.TW_CLIPS; return m ? m[lang+'|'+String(text).trim()] : null; }
+function loadClip(fn){
+  var c=ctx(); if(!c) return Promise.reject(new Error('no audio'));
+  if(!CLIPBUF[fn]) CLIPBUF[fn]=fetch('clips/'+fn).then(function(r){ if(!r.ok) throw new Error('clip '+r.status); return r.arrayBuffer(); })
+    .then(function(b){ return new Promise(function(res,rej){ c.decodeAudioData(b,res,rej); }); })
+    .catch(function(e){ delete CLIPBUF[fn]; throw e; });
+  return CLIPBUF[fn];
+}
+function stopClip(){ var s=clipSrc; clipSrc=null; if(s){ try{ s.onended=null; s.stop(); }catch(e){} } if(clipDone){ var d=clipDone; clipDone=null; d(true); } }
+function playClip(fn){
+  return loadClip(fn).then(function(buf){ return new Promise(function(res){
+    stopClip(); var c=ctx(), s=c.createBufferSource(); s.buffer=buf; s.connect(c.destination);
+    clipSrc=s; clipDone=res; s.onended=function(){ if(clipSrc===s){ clipSrc=null; clipDone=null; } res(true); };
+    s.start(); }); });
+}
+function preloadClips(items, wordOnly){ items.forEach(function(it){ if(!it) return; var t=it.lang==='en'?englishText(it,wordOnly):japaneseText(it,wordOnly), f=clipFile(t,it.lang); if(f) loadClip(f).catch(function(){}); }); }
+function deviceMaleEn(){ var v=chosen.en||pickVoice('en'); return v && v._gender==='male' && /^en[-_]US/i.test(v.lang||'') ? v : null; }
 function sayText(text, lang, o){
   o=o||{};
-  if(lang==='en' && neuralWanted() && neural.state==='ready'){
+  var fn=clipFile(text, lang);
+  if(window.__onSay) try{ window.__onSay(text, lang, fn?'clip':'live'); }catch(e){}
+  if(fn) return playClip(fn).catch(function(e){ console.warn('clip failed, live voice', e); return sayLive(text, lang, o); });
+  return sayLive(text, lang, o);
+}
+// Live voice, only for text without a clip (e.g. parent-added words): device en-US male / ja-JP female first, else Piper for English.
+function sayLive(text, lang, o){
+  if(lang==='en' && !deviceMaleEn() && neuralWanted() && neural.state==='ready'){
     return NeuralTTS.play(text,{voiceKey:settings.neuralVoice, lengthScale:o.lengthScale||LS_SCALE, rate:o.rate, audioCtx:ctx()})
       .then(function(){return true;}).catch(function(e){ console.warn('neural play failed', e); return speakDevice(text,'en',o.pitch); });
   }
@@ -334,7 +360,7 @@ function warmPhrases(){
 }
 function sayPhrase(k){ var p=PHRASES[k]; return sayText(phraseText(p),'en',p); }
 function say(item, wordOnly){ return item.lang==='en' ? sayText(englishText(item,wordOnly),'en') : sayText(japaneseText(item,wordOnly),'ja'); }
-function hush(){ try{synth&&synth.cancel();}catch(e){} NeuralTTS.stop(); }
+function hush(){ try{synth&&synth.cancel();}catch(e){} NeuralTTS.stop(); stopClip(); }
 
 /* ======================= SPEECH RECOGNITION ======================= */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -1071,12 +1097,27 @@ function closeWrite(silent){ W.gen++; clearTimeout(W.timer); wStopDemo(); W.trac
   window.addEventListener('resize', wLayout);
 })();
 
+function allSpeech(){
+  var out={}, keep=settings.sayLetter;
+  function add(t,l){ out[l+'|'+String(t).trim()]={text:String(t).trim(),lang:l}; }
+  function items(list){ list.forEach(function(it){ [true,false].forEach(function(sl){ settings.sayLetter=sl; [false,true].forEach(function(wo){ add(it.lang==='en'?englishText(it,wo):japaneseText(it,wo), it.lang); }); }); }); }
+  ['en','ja','numen','numja'].forEach(function(id){ items(deckById(id)); });
+  items(ANIMALS); items(LETTERS_AZ.split('').map(function(ch){ return {lang:'en',letter:ch,word:ch,speak:ch+'.'}; }));
+  settings.sayLetter=keep;
+  Object.keys(PHRASES).forEach(function(k){ var p=PHRASES[k]; add(typeof p.text==='function'?'Good job, Theo!':p.text,'en'); });
+  add('Good job!','en');
+  Object.keys(LATIN_STROKES.upper).forEach(function(c){ add(c.toUpperCase()+'.','en'); });
+  Object.keys(KANA_STROKES.glyphs).forEach(function(c){ add(c+'。','ja'); });
+  add('Hi Theo! Shall we learn some letters?','en'); add('おはよう。 いっしょに あいうえおを いおう。','ja');
+  return Object.keys(out).map(function(k){ return out[k]; });
+}
+
 /* ======================= BOOT ======================= */
 if(synth){ refreshVoices(); if('onvoiceschanged' in synth) synth.onvoiceschanged=refreshVoices; setTimeout(refreshVoices,800); }
 render(false);
 if(!SR) note('Listening needs Chrome or Edge. You can still play words and use “Good job” / “Next”.');
 loadNeural();
-window.TW = {matches:matches, deck:deck, deckById:deckById, EN:EN, JA:JA, NUM_EN:NUM_EN, NUM_JA:NUM_JA, settings:settings, neural:neural, chosen:chosen,
+window.TW = {allSpeech:allSpeech, clipFile:clipFile, loadClip:loadClip, matches:matches, deck:deck, deckById:deckById, EN:EN, JA:JA, NUM_EN:NUM_EN, NUM_JA:NUM_JA, settings:settings, neural:neural, chosen:chosen,
   openParent:openParent, pickVoice:pickVoice, go:go, celebrate:celebrate, openMatch:openMatch, startMatch:startMatch, showPicker:showPicker, M:M, flip:flip, pictureHTML:pictureHTML,
   ANIMALS:ANIMALS, letterPool:letterPool, matchItems:matchItems, PHRASES:PHRASES, sayPhrase:sayPhrase, swoosh:swoosh, fanfare:fanfare, win:win, MATCH_MODES:MATCH_MODES,
   deckDone:deckDone, playRound:playRound, applause:applause, hear:hear, listen:listen, pos:pos, render:render, countSVG:countSVG, childName:childName, lastHear:null,

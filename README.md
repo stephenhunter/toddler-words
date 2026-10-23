@@ -11,11 +11,12 @@ A free early-learning web app for little ones: tap the big card, hear the word, 
 
 After your child says the word, the app cheers and moves to the next card by itself. Finish a whole deck for a big "Good Job Theo!" (change the name in Settings).
 
-Works best in Chrome or Edge. Allow the microphone when asked. Edge gives a male Japanese voice.
+Works best in Chrome or Edge. Allow the microphone when asked. Built-in words use recorded clips; custom words use the device voice.
 
 ## Credits and licences
 - Artwork and app code: original, © 2026 Stephen Hunter.
-- English voice: Piper `en_US-bryce-medium` (default, American male tenor) and `en_US-norman-medium`, both by Bryce Beattie, public domain (https://brycebeattie.com/files/tts/). See `voices/*.MODEL_CARD.md`.
+- Voices: built-in words play pre-recorded clips. English is Kokoro-82M `am_fenrir` (Apache-2.0). Japanese is VOICEVOX:春日部つむぎ. Parent-added words use the device voice, or Piper for English.
+- Fallback English voice: Piper `en_US-bryce-medium` (default, American male tenor) and `en_US-norman-medium`, both by Bryce Beattie, public domain (https://brycebeattie.com/files/tts/). See `voices/*.MODEL_CARD.md`.
 - Hiragana stroke data: derived from **KanjiVG** (http://kanjivg.tagaini.net), © Ulrich Apel, licensed **CC BY-SA 3.0** (https://creativecommons.org/licenses/by-sa/3.0/). The derived file `kana-strokes.js` is shared under the same licence.
 - Latin letter stroke data (`latin-strokes.js`): original, Zaner-Bloser-style stroke order.
 - Speech runtime: ONNX Runtime Web (MIT, © Microsoft) and piper-phonemize, which includes espeak-ng (GPL-3.0). See `NOTICE.md`.
