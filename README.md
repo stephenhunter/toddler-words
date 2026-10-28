@@ -20,3 +20,7 @@ Works best in Chrome or Edge. Allow the microphone when asked. Built-in words us
 - Hiragana stroke data: derived from **KanjiVG** (http://kanjivg.tagaini.net), © Ulrich Apel, licensed **CC BY-SA 3.0** (https://creativecommons.org/licenses/by-sa/3.0/). The derived file `kana-strokes.js` is shared under the same licence.
 - Latin letter stroke data (`latin-strokes.js`): original, Zaner-Bloser-style stroke order.
 - Speech runtime: ONNX Runtime Web (MIT, © Microsoft) and piper-phonemize, which includes espeak-ng (GPL-3.0). See `NOTICE.md`.
+
+## Draw
+
+The Draw tab is a white page for finger or stylus drawing: 12 colours plus a white eraser, three brush sizes, Undo, Clear (hold the button for about a second) and Save (downloads a PNG). Tapping a colour says its name in English or Japanese, matching the current deck.

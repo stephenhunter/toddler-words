@@ -307,6 +307,41 @@
   .wgreat{position:absolute;left:50%;top:10%;transform:translate(-50%,0);font-size:clamp(40px,12vw,76px);font-weight:900;color:#ff4f8b;text-shadow:0 4px 0 #ffd84d,0 8px 0 rgba(59,43,90,.14);pointer-events:none;opacity:0;white-space:nowrap}
   .wgreat.show{animation:wgIn .8s cubic-bezier(.3,1.6,.5,1) both}
   @keyframes wgIn{0%{transform:translate(-50%,0) scale(.3);opacity:0}100%{transform:translate(-50%,0) scale(1);opacity:1}}
+  /* ===== v7: Draw ===== */
+  :root{--tab-draw:#2bb3a3}
+  .tab[data-view=draw].on{background:var(--tab-draw);color:#fff}
+  .drawView{position:fixed;left:0;right:0;bottom:0;top:var(--hdrH,64px);z-index:30;display:none;flex-direction:column;gap:8px;padding:6px 8px max(8px,env(safe-area-inset-bottom));background:linear-gradient(160deg,#e6fbf6,#fff1e3)}
+  .drawView.open{display:flex}
+  .dstage{position:relative;flex:1 1 auto;min-height:0;border-radius:22px;background:#fff;box-shadow:0 0 0 3px #d9cfe8,0 6px 0 rgba(59,43,90,.1);overflow:hidden}
+  #dCanvas{position:absolute;left:0;top:0;display:block;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:crosshair}
+  .dhint{position:absolute;left:50%;bottom:12px;transform:translate(-50%,20px);background:#3b2b5a;color:#fff;font-weight:900;font-size:18px;padding:8px 16px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none}
+  .dhint.show{opacity:.92;transform:translate(-50%,0)}
+  .dbar{flex:0 0 auto;display:flex;flex-direction:column;gap:8px;touch-action:manipulation}
+  .dswatches{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+  .dsw{width:50px;height:50px;border-radius:50%;border:4px solid #fff;background:var(--c);box-shadow:0 0 0 2px #d9cfe8,0 4px 0 rgba(59,43,90,.18);padding:0;cursor:pointer;transition:transform .15s;-webkit-tap-highlight-color:transparent}
+  .dsw.eraser{padding:8px;color:#3b2b5a}
+  .dsw.eraser svg{width:100%;height:100%;display:block}
+  .dsw.on{transform:scale(1.18);box-shadow:0 0 0 4px #3b2b5a,0 5px 0 rgba(59,43,90,.25)}
+  .dtools{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
+  .dsizes{display:flex;gap:6px;background:#fff;border-radius:999px;padding:5px;box-shadow:0 3px 0 rgba(59,43,90,.12)}
+  .dsz{width:48px;height:48px;border-radius:50%;border:0;background:#f4f0fa;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .dsz span{display:block;border-radius:50%;background:var(--c,#3b2b5a)}
+  .dsz.on{background:#fff;box-shadow:0 0 0 3px #3b2b5a}
+  .dbtn{position:relative;height:58px;min-width:72px;border:0;border-radius:18px;background:#fff;color:#3b2b5a;font:inherit;font-weight:900;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 10px;box-shadow:0 4px 0 rgba(59,43,90,.16);cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+  .dbtn svg{width:28px;height:28px}
+  .dbtn:disabled{opacity:.45}
+  .dbtn.save{background:#ffe9f2}
+  .dbtn.clear .ring{position:absolute;inset:auto;width:44px;height:44px;top:2px;left:50%;margin-left:-22px;transform:rotate(-90deg);pointer-events:none}
+  .dbtn.clear .ring circle{fill:none;stroke:#ff4f8b;stroke-width:4;stroke-linecap:round;stroke-dasharray:119.4;stroke-dashoffset:calc(119.4*(1 - var(--p,0)))}
+  .dbtn.clear:not(.holding) .ring{opacity:0}
+  .dbtn.clear.holding{transform:scale(.95)}
+  .dbtn.nudge{animation:dnudge .4s}
+  @keyframes dnudge{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+  @media (max-width:560px){ .dsw{width:42px;height:42px;border-width:3px} .dswatches{gap:6px} .dbtn{min-width:60px;height:54px} .dsz{width:42px;height:42px} }
+  @media (min-width:700px){ .dsw{width:52px;height:52px} .dswatches{gap:8px} .dbtn{height:68px;min-width:86px;font-size:16px} .dbtn svg{width:34px;height:34px} .dsz{width:58px;height:58px} .dsz span{transform:scale(1.25)} }
+  @media (min-width:1000px){ .dsw{width:58px;height:58px} .dswatches{gap:10px} }
+  @media (max-width:420px){ .tabs{gap:3px} .tab{min-width:0;padding:6px 2px 5px;font-size:11.5px} .tab .i{width:22px;height:22px} header{gap:4px} .gear{width:38px;height:38px;padding:7px} }
+  @media (orientation:landscape) and (max-height:560px){ .drawView{flex-direction:row} .dbar{width:min(38vw,250px);justify-content:center} .dsw{width:40px;height:40px} .dtools .dbtn{min-width:54px;height:50px} }
 </style>
 </head>
 <body class="deck-en">
@@ -318,6 +353,7 @@
     <button class="tab" data-deck="my" role="tab"><span class="i" data-icon="star"></span><span class="long">My Words</span><span class="short">Mine</span></button>
     <button class="tab" data-view="match" role="tab"><span class="i" data-icon="cards"></span><span>Match</span></button>
     <button class="tab" data-view="write" role="tab"><span class="i" data-icon="pen"></span><span>Write</span></button>
+    <button class="tab" data-view="draw" role="tab"><span class="i" data-icon="brush"></span><span>Draw</span></button>
   </nav>
   <button class="gear" id="gear" aria-label="Parent area (press and hold 3 seconds)">
     <svg class="ring" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/></svg><span class="i" data-icon="gear"></span>
@@ -359,6 +395,19 @@
   <div class="row">
     <button class="bigbtn" id="dAgain"><span class="i" data-icon="again"></span><span>Play again</span></button>
     <button class="bigbtn alt" id="dClose"><span class="i" data-icon="check"></span><span>Done</span></button>
+  </div>
+</div>
+
+<div class="drawView" id="drawView" role="dialog" aria-label="Draw">
+  <div class="dstage" id="dStage"><canvas id="dCanvas" aria-label="Drawing paper"></canvas><div class="dhint" id="dHint">Hold to clear</div></div>
+  <div class="dbar">
+    <div class="dswatches" id="dSwatches" role="group" aria-label="Colours"></div>
+    <div class="dtools">
+      <div class="dsizes" id="dSizes" role="group" aria-label="Brush size"></div>
+      <button class="dbtn" id="dUndo" aria-label="Undo"></button>
+      <button class="dbtn clear" id="dClear" aria-label="Hold to clear"></button>
+      <button class="dbtn save" id="dSave" aria-label="Save picture"></button>
+    </div>
   </div>
 </div>
 
@@ -469,5 +518,6 @@
 <script src="latin-strokes.js"></script>
 <script src="kana-strokes.js"></script>
 <script src="app.js"></script>
+<script src="draw.js"></script>
 </body>
 </html>

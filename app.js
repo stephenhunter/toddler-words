@@ -529,7 +529,7 @@ function go(delta){
 }
 function stopAll(){ busy=false; el.play.classList.remove('busy'); setListening(false); hush(); clearTimeout(advanceTimer); }
 function setListening(on){ el.play.classList.toggle('listening', !!on); document.body.classList.toggle('is-listening', !!on); if(!on) meter(-1); }
-function overlayOpen(){ return $('modal').classList.contains('open') || $('matchView').classList.contains('open') || $('writeView').classList.contains('open') || $('doneView').classList.contains('show'); }
+function overlayOpen(){ return $('modal').classList.contains('open') || $('matchView').classList.contains('open') || $('writeView').classList.contains('open') || drawOpen() || $('doneView').classList.contains('show'); }
 function starPts(cx,cy,R,r,k){ var s=''; for(var i=0;i<k*2;i++){ var rad=i%2?r:R, a=-Math.PI/2+i*Math.PI/k; s+=(i?'L':'M')+(cx+rad*Math.cos(a)).toFixed(1)+' '+(cy+rad*Math.sin(a)).toFixed(1); } return s+'Z'; }
 var CONF_SHAPES = [
   function(col){ return '<svg viewBox="0 0 24 24"><path d="'+starPts(12,12.8,11,4.8,5)+'" fill="'+col+'" stroke="#3b2b5a" stroke-width="1.6" stroke-linejoin="round"/></svg>'; },
@@ -659,10 +659,13 @@ function renderModes(active){
     box.appendChild(b);
   });
 }
-function openMatch(){ runId++; stopAll(); if($('writeView').classList.contains('open')) closeWrite(true); $('matchView').classList.add('open'); syncTabs(); showPicker(); }
+function openMatch(){ runId++; stopAll(); closeDraw(true); if($('writeView').classList.contains('open')) closeWrite(true); $('matchView').classList.add('open'); syncTabs(); showPicker(); }
 function closeMatch(silent){ M.gen++; clearTimeout(M.timer); hush(); $('matchView').classList.remove('open'); $('mWin').classList.remove('show'); if(silent===true) syncTabs(); else render(true); }
 // v5: top bar holds the decks (ABC/あいう/123/Mine) and the views (Match/Write)
-function syncTabs(){ var v=$('matchView').classList.contains('open')?'match':($('writeView').classList.contains('open')?'write':null);
+function drawOpen(){ return !!(window.TWDraw && TWDraw.isOpen()); }
+function closeDraw(silent){ if(drawOpen()){ TWDraw.close(); hush(); if(!silent) render(true); else syncTabs(); } }
+function openDraw(){ runId++; stopAll(); if($('matchView').classList.contains('open')) closeMatch(true); if($('writeView').classList.contains('open')) closeWrite(true); TWDraw.open(); syncTabs(); }
+function syncTabs(){ var v=$('matchView').classList.contains('open')?'match':($('writeView').classList.contains('open')?'write':(drawOpen()?'draw':null));
   document.querySelectorAll('.tab[data-deck]').forEach(function(b){ b.classList.toggle('on', !v && b.dataset.deck===deckId); });
   document.querySelectorAll('.tab[data-view]').forEach(function(b){ b.classList.toggle('on', b.dataset.view===v); }); }
 function setHdr(){ var h=document.querySelector('header'); if(h) document.documentElement.style.setProperty('--hdrH', Math.round(h.getBoundingClientRect().height)+'px'); }
@@ -784,7 +787,7 @@ function win(){
   fanfare(); confetti(80, true);
   M.timer=setTimeout(function(){ if(gen===M.gen) sayPhrase('yay'); }, 1300);
 }
-document.querySelectorAll('.tab[data-view]').forEach(function(b){ b.addEventListener('click', function(){ ctx(); if(b.dataset.view==='match'){ if(!$('matchView').classList.contains('open')) openMatch(); } else if(!$('writeView').classList.contains('open')) openWrite(); }); });
+document.querySelectorAll('.tab[data-view]').forEach(function(b){ b.addEventListener('click', function(){ ctx(); if(b.dataset.view==='draw'){ if(!drawOpen()) openDraw(); } else if(b.dataset.view==='match'){ if(!$('matchView').classList.contains('open')) openMatch(); } else if(!$('writeView').classList.contains('open')) openWrite(); }); });
 $('mHome').addEventListener('click', closeMatch);
 $('mBack').addEventListener('click', showPicker);
 $('wAgain').addEventListener('click', function(){ ctx(); startMatch(M.deck); });
@@ -800,8 +803,8 @@ $('goodBtn').addEventListener('click', function(){ if(deck().length){ ctx(); cel
 $('dAgain').addEventListener('click', function(){ ctx(); closeDone(); runId++; stopAll(); pos[curKey()]=0; render(true); var r=runId; setTimeout(function(){ if(r===runId && !overlayOpen()) playRound(); }, 450); });
 $('dClose').addEventListener('click', function(){ closeDone(); runId++; stopAll(); setStatus('', ''); });
 document.querySelectorAll('.tab[data-deck]').forEach(function(b){ b.addEventListener('click', function(){
-  var ov=$('matchView').classList.contains('open')||$('writeView').classList.contains('open');
-  if(ov){ if($('matchView').classList.contains('open')) closeMatch(true); if($('writeView').classList.contains('open')) closeWrite(true); }
+  var ov=$('matchView').classList.contains('open')||$('writeView').classList.contains('open')||drawOpen();
+  if(ov){ closeDraw(true); if($('matchView').classList.contains('open')) closeMatch(true); if($('writeView').classList.contains('open')) closeWrite(true); }
   if(deckId===b.dataset.deck){ if(ov) render(true); return; } runId++; stopAll(); deckId=b.dataset.deck; note(''); render(true);
 });});
 document.querySelectorAll('#numToggle button').forEach(function(b){ b.addEventListener('click', function(){
@@ -1080,7 +1083,7 @@ function wFinish(){
   W.timer=setTimeout(adv, 7000);
 }
 function openWrite(){
-  runId++; stopAll(); if($('matchView').classList.contains('open')) closeMatch(true);
+  runId++; stopAll(); closeDraw(true); if($('matchView').classList.contains('open')) closeMatch(true);
   $('writeView').classList.add('open'); syncTabs(); wLayout(); wRender();
 }
 function closeWrite(silent){ W.gen++; clearTimeout(W.timer); wStopDemo(); W.trace=null; hush(); $('writeView').classList.remove('open'); if(!silent) render(true); else syncTabs(); }
@@ -1121,5 +1124,6 @@ window.TW = {allSpeech:allSpeech, clipFile:clipFile, loadClip:loadClip, matches:
   openParent:openParent, pickVoice:pickVoice, go:go, celebrate:celebrate, openMatch:openMatch, startMatch:startMatch, showPicker:showPicker, M:M, flip:flip, pictureHTML:pictureHTML,
   ANIMALS:ANIMALS, letterPool:letterPool, matchItems:matchItems, PHRASES:PHRASES, sayPhrase:sayPhrase, swoosh:swoosh, fanfare:fanfare, win:win, MATCH_MODES:MATCH_MODES,
   deckDone:deckDone, playRound:playRound, applause:applause, hear:hear, listen:listen, pos:pos, render:render, countSVG:countSVG, childName:childName, lastHear:null,
-  W:W, wRender:wRender, openWrite:openWrite, closeWrite:closeWrite, wCheck:wCheck, wList:wList, syncTabs:syncTabs};
+  W:W, wRender:wRender, openWrite:openWrite, closeWrite:closeWrite, wCheck:wCheck, wList:wList, syncTabs:syncTabs,
+  sayText:sayText, softPop:softPop, ctx:ctx, hush:hush, openDraw:openDraw, closeDraw:closeDraw, drawLang:function(){ return (deckId==='ja'||(deckId==='num'&&numLang==='ja'))?'ja':'en'; }};
 })();

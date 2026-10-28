@@ -2,7 +2,7 @@
 
 - **ONNX Runtime Web** (`vendor/ort*.js`, `vendor/ort-wasm-simd-threaded.*`): MIT License, Copyright (c) Microsoft Corporation. https://github.com/microsoft/onnxruntime
 - **piper-phonemize** (`vendor/piper_phonemize.*`): MIT License, Copyright (c) Rhasspy contributors. https://github.com/rhasspy/piper-phonemize . It bundles **espeak-ng** and its data, licensed under GPL-3.0-or-later. https://github.com/espeak-ng/espeak-ng — source is available at that link.
-- **Pre-recorded word clips** (`clips/en/*.mp3`): rendered with **Kokoro-82M** by hexgrad, Apache-2.0 (model and voices), voice `am_fenrir`. https://huggingface.co/hexgrad/Kokoro-82M
-- **Pre-recorded Japanese clips** (`clips/ja/*.mp3`): **VOICEVOX:春日部つむぎ**. Made with VOICEVOX (https://voicevox.hiroshiba.jp/) and voicevox_core (MIT). Voice terms: https://tsumugi-official.studio.site/rule
+- **Pre-recorded word clips** (`clips/en/*.mp3`, including the Draw colour names): rendered with **Kokoro-82M** by hexgrad, Apache-2.0 (model and voices), voice `am_fenrir`. https://huggingface.co/hexgrad/Kokoro-82M
+- **Pre-recorded Japanese clips** (`clips/ja/*.mp3`, including the Draw colour names): **VOICEVOX:春日部つむぎ**. Made with VOICEVOX (https://voicevox.hiroshiba.jp/) and voicevox_core (MIT). Voice terms: https://tsumugi-official.studio.site/rule
 - **Piper voices** (fallback for parent-added words only) `en_US-bryce-medium` and `en_US-norman-medium` by Bryce Beattie: **public domain** ("Feel free to use these for any legal and ethical purpose"). https://brycebeattie.com/files/tts/ · https://huggingface.co/rhasspy/piper-voices . See `voices/*.MODEL_CARD.md`.
 - **KanjiVG** (hiragana stroke paths in `kana-strokes.js`): Copyright (C) 2009-2011 Ulrich Apel, licensed under Creative Commons Attribution-Share Alike 3.0 (CC BY-SA 3.0). http://kanjivg.tagaini.net · https://github.com/KanjiVG/kanjivg . `kana-strokes.js` is an adaptation (path data extracted, unchanged) and is distributed under CC BY-SA 3.0.
